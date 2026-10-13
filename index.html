@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Нейросинт</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="styles/reset.css" />
+    <link rel="stylesheet" href="styles/bold/basics.css" />
+    <link rel="stylesheet" href="styles/bold/Transport.css" />
+    <link rel="stylesheet" href="styles/bold/Screen.css" />
+    <link rel="stylesheet" href="styles/bold/Sequencer.css" />
+    <link rel="stylesheet" href="styles/bold/Layer.css" />
+    <link rel="stylesheet" href="styles/bold/Knob.css" />
+    <link rel="stylesheet" href="styles/bold/Fader.css" />
+    <link rel="stylesheet" href="styles/bold/Master.css" />
+    <script src="https://cdn.jsdelivr.net/npm/tone@15.1.22/build/Tone.js"></script>
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+        }
+      }
+    </script>
+    <script type="module" src="src/main.js"></script>
+  </head>
+
+  <body>
+    <main class="Instrument">
+      <h1 class="VisuallyHidden">Нейросинт</h1>
+      <section
+        class="Transport"
+        id="transport"
+        aria-label="Транспорт"
+      ></section>
+      <section
+        class="Screen"
+        id="screen"
+        data-framing="full"
+        role="img"
+        aria-label="3D-сеть нейронов: крутится мышью, светится вместе с музыкой"
+      ></section>
+      <section class="Raster" id="raster" aria-label="Растр бита"></section>
+      <div class="Layers" id="layers"></div>
+      <section class="Master" id="master" aria-label="Выход"></section>
+    </main>
+  </body>
+</html>
