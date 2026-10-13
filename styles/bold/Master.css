@@ -1,0 +1,22 @@
+.Master {
+  grid-area: master;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 28px;
+  padding-top: 12px;
+}
+
+.Master .WithIcon:last-child {
+  margin-top: auto;
+}
+
+.Master .Knob.isLarge {
+  background: radial-gradient(
+    circle at 40% 30%,
+    rgba(90, 132, 212, 0.18) 0%,
+    rgba(3, 6, 13, 0.6) 60%
+  );
+  backdrop-filter: blur(var(--blur));
+  border: var(--hair) solid var(--color-hair-dim);
+}

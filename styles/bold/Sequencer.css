@@ -1,0 +1,69 @@
+.Raster {
+  grid-area: raster;
+}
+
+.Sequencer {
+  display: grid;
+  gap: 4px;
+}
+
+.SequencerRow {
+  display: grid;
+  grid-template-columns: repeat(16, 1fr);
+  column-gap: 2px;
+}
+
+.SequencerRow.is-kick {
+  --layer: var(--color-kick);
+}
+
+.SequencerRow.is-perc {
+  --layer: var(--color-perc);
+}
+
+.Step {
+  position: relative;
+  height: 30px;
+}
+
+.Step::before {
+  content: '';
+  position: absolute;
+  left: calc(50% - 0.5px);
+  top: 6px;
+  bottom: 6px;
+  width: 1px;
+  background-color: var(--color-hair-dim);
+  transition:
+    width 160ms var(--ease),
+    left 160ms var(--ease);
+}
+
+.Step:nth-child(4n + 1):not(:first-child) {
+  margin-left: 12px;
+}
+
+.Step:nth-child(4n + 1)::before {
+  background-color: var(--color-hair);
+}
+
+.Step[aria-pressed='true']::before {
+  left: calc(50% - 3px);
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  background-color: var(--layer);
+  box-shadow: 0 0 14px var(--layer);
+}
+
+.Step.isNow::before {
+  background-color: var(--color-text);
+}
+
+.Step.isNow[aria-pressed='true']::before {
+  background-color: color-mix(in oklab, var(--layer), white 45%);
+}
+
+.SequencerRow.isOff .Step {
+  opacity: 0.3;
+}

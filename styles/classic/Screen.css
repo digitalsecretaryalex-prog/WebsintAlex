@@ -1,0 +1,21 @@
+.Screen {
+  grid-area: screen;
+  position: relative;
+  min-height: 0;
+  overflow: hidden;
+  border-radius: var(--radius-screen);
+  background-color: var(--color-screen);
+  cursor: grab;
+}
+
+.Screen:active {
+  cursor: grabbing;
+}
+
+.Screen canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}

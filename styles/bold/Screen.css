@@ -1,0 +1,32 @@
+.Screen {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  background-color: var(--color-screen);
+  pointer-events: auto;
+  cursor: grab;
+}
+
+.Screen:active {
+  cursor: grabbing;
+}
+
+.Screen canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.Screen::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    120% 90% at 45% 40%,
+    transparent 45%,
+    rgba(3, 6, 13, 0.85) 100%
+  );
+}

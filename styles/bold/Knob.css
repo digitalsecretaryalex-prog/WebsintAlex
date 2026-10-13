@@ -1,0 +1,59 @@
+.Knob {
+  width: var(--knob);
+  height: var(--knob);
+  flex: none;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 35% 28%,
+    #22464f 0%,
+    #0a2026 55%,
+    #03090c 100%
+  );
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    0 10px 24px rgba(0, 0, 0, 0.55);
+  cursor: ns-resize;
+  touch-action: none;
+}
+
+.Knob.isLarge {
+  width: var(--knob-large);
+  height: var(--knob-large);
+}
+
+.Knob svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.KnobTrack,
+.KnobValue {
+  fill: none;
+  stroke-width: 2.5;
+  stroke-linecap: butt;
+}
+
+.KnobTrack {
+  stroke: var(--color-hair-dim);
+}
+
+.KnobValue {
+  stroke: var(--layer, var(--color-ice));
+  filter: drop-shadow(0 0 3px var(--layer, var(--color-ice)));
+}
+
+.KnobMark {
+  stroke: var(--color-text);
+  stroke-width: 2;
+  stroke-linecap: butt;
+}
+
+.Knob.isLarge .KnobTrack,
+.Knob.isLarge .KnobValue {
+  stroke-width: 1.5;
+}
+
+.Knob.isLarge .KnobMark {
+  stroke-width: 1;
+}

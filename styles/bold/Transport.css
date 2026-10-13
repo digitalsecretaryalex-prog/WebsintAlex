@@ -1,0 +1,133 @@
+.Transport {
+  grid-area: transport;
+  display: flex;
+  align-items: flex-start;
+  gap: calc(var(--gap) * 2);
+}
+
+.Transport .WithIcon {
+  flex-direction: row;
+  margin-top: 18px;
+}
+
+.PlayButton {
+  display: grid;
+  place-items: center;
+  width: var(--play);
+  height: var(--play);
+  flex: none;
+  border-radius: 50%;
+  background-color: var(--color-signal);
+  color: var(--color-on-fill);
+  box-shadow: var(--glow) rgba(90, 132, 212, 0.55);
+  transition: transform 160ms var(--ease);
+}
+
+.PlayButton .Icon {
+  --icon: 28px;
+}
+
+.Parts {
+  position: relative;
+  display: flex;
+  flex: 1;
+  justify-content: space-between;
+  height: calc(var(--button) + 72px);
+  padding-right: 8px;
+}
+
+.Parts::before {
+  content: '';
+  position: absolute;
+  left: 26px;
+  right: 34px;
+  top: 26px;
+  bottom: 26px;
+  background: linear-gradient(
+    to top right,
+    transparent calc(50% - 0.6px),
+    var(--color-hair) 50%,
+    transparent calc(50% + 0.6px)
+  );
+}
+
+.PartButton {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: var(--button);
+  height: var(--button);
+  border-radius: 50%;
+  border: var(--hair) solid var(--color-hair);
+  background-color: var(--color-void);
+  color: var(--color-ice);
+  transition: transform 160ms var(--ease);
+}
+
+.PartButton:nth-child(2) {
+  margin-top: 24px;
+}
+.PartButton:nth-child(3) {
+  margin-top: 48px;
+}
+.PartButton:nth-child(4) {
+  margin-top: 72px;
+}
+
+.PartButton.isOn {
+  border-color: var(--color-signal);
+  background-color: var(--color-signal);
+  color: var(--color-on-fill);
+  box-shadow: var(--glow) rgba(90, 132, 212, 0.6);
+}
+
+.PartButton.isPending {
+  --pending: var(--color-signal);
+  border: 2px dashed var(--color-signal);
+  animation: pending 1.6s ease-in-out infinite;
+}
+
+.ResetButton {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  margin: 6px 6px 0 0;
+  flex: none;
+  transform: rotate(45deg);
+  border: var(--hair) solid var(--color-hair);
+  color: var(--color-ice);
+  transition: transform 160ms var(--ease);
+}
+
+.ResetButton .Icon {
+  transform: rotate(-45deg);
+}
+
+.PlayButton:active,
+.PartButton:active {
+  transform: scale(0.94);
+}
+
+.ResetButton:active {
+  transform: rotate(45deg) scale(0.92);
+}
+
+@media (hover: hover) {
+  .PartButton:not(.isOn):hover,
+  .ResetButton:hover {
+    background-color: rgba(172, 198, 236, 0.12);
+  }
+}
+
+@keyframes pending {
+  50% {
+    background-color: color-mix(in srgb, var(--pending) 30%, transparent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .PartButton.isPending {
+    animation: none;
+  }
+}

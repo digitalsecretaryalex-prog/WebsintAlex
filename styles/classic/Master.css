@@ -1,0 +1,14 @@
+.Master {
+  grid-area: master;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+  padding: 18px 0;
+  border-radius: var(--radius-screen);
+  background-color: var(--color-raised);
+}
+
+.Master .WithIcon:last-child {
+  margin-top: auto;
+}

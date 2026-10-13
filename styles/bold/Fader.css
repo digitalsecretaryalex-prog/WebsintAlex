@@ -1,0 +1,77 @@
+.Fader {
+  position: relative;
+  width: 36px;
+  height: var(--fader);
+  flex: none;
+}
+
+.Fader input {
+  position: absolute;
+  top: 50%;
+  left: calc(50% - 4px);
+  width: var(--fader);
+  height: 28px;
+  margin: 0;
+  transform: translate(-50%, -50%) rotate(-90deg);
+  appearance: none;
+  background: none;
+  cursor: ns-resize;
+}
+
+.Fader input::-webkit-slider-runnable-track {
+  height: 1px;
+  background-color: var(--color-hair);
+}
+
+.Fader input::-moz-range-track {
+  height: 1px;
+  background-color: var(--color-hair);
+}
+
+.Fader input::-webkit-slider-thumb {
+  appearance: none;
+  width: 4px;
+  height: 26px;
+  margin-top: -12.5px;
+  background-color: var(--layer, var(--color-ice));
+  box-shadow: 0 0 10px var(--layer, var(--color-ice));
+}
+
+.Fader input::-moz-range-thumb {
+  width: 4px;
+  height: 26px;
+  border: 0;
+  border-radius: 0;
+  background-color: var(--layer, var(--color-ice));
+  box-shadow: 0 0 10px var(--layer, var(--color-ice));
+}
+
+.FaderMeter {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 6px;
+  height: 100%;
+  border-radius: 3px;
+  background-color: rgba(172, 198, 236, 0.08);
+  overflow: hidden;
+}
+
+.FaderMeter::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  height: calc(var(--level, 0) * 100%);
+  border-radius: 3px;
+  background: linear-gradient(
+    to top,
+    transparent,
+    var(--layer, var(--color-ice))
+  );
+}
+
+.Fader.isMaster {
+  --fader: clamp(120px, 26vh, 360px);
+}

@@ -1,0 +1,89 @@
+.Transport {
+  grid-area: transport;
+  display: flex;
+  align-items: center;
+  gap: var(--gap);
+  padding: 8px;
+  border-radius: var(--radius-screen);
+  background-color: var(--color-raised);
+}
+
+.Transport .WithIcon {
+  flex-direction: row;
+}
+
+.PlayButton,
+.ResetButton {
+  display: grid;
+  place-items: center;
+  width: var(--button);
+  height: var(--button);
+  flex: none;
+  border-radius: var(--radius-button);
+  border: var(--border) solid var(--color-signal);
+  transition: transform 120ms var(--ease);
+}
+
+.PlayButton {
+  background-color: var(--color-signal);
+  color: var(--color-on-fill);
+}
+
+.ResetButton {
+  border-color: var(--color-line-strong);
+  color: var(--color-ice);
+}
+
+.Parts {
+  display: flex;
+  flex: 1;
+  gap: var(--gap);
+}
+
+.PartButton {
+  display: grid;
+  place-items: center;
+  flex: 1;
+  height: var(--button);
+  border-radius: var(--radius-button);
+  border: var(--border) solid var(--color-line-strong);
+  color: var(--color-ice);
+  transition: transform 120ms var(--ease);
+}
+
+.PartButton.isOn {
+  border-color: var(--color-signal);
+  background-color: var(--color-signal);
+  color: var(--color-on-fill);
+}
+
+.PartButton.isPending {
+  --pending: var(--color-signal);
+  border: 3px dashed var(--color-signal);
+  animation: pending 1.6s ease-in-out infinite;
+}
+
+.PlayButton:active,
+.ResetButton:active,
+.PartButton:active {
+  transform: scale(0.96);
+}
+
+@media (hover: hover) {
+  .ResetButton:hover,
+  .PartButton:not(.isOn):hover {
+    background-color: var(--color-line);
+  }
+}
+
+@keyframes pending {
+  50% {
+    background-color: color-mix(in srgb, var(--pending) 28%, transparent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .PartButton.isPending {
+    animation: none;
+  }
+}

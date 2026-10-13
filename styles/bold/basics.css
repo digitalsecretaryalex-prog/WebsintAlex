@@ -1,0 +1,130 @@
+:root {
+  --color-void: #03060d;
+  --color-screen: #03060d;
+  --color-glass: rgba(18, 51, 58, 0.32);
+  --color-hair: rgba(172, 198, 236, 0.55);
+  --color-hair-dim: rgba(172, 198, 236, 0.22);
+  --color-line: #1d434a;
+  --color-line-strong: #5a8389;
+  --color-knob: #061a1f;
+  --color-signal: #5a84d4;
+  --color-ice: #acc6ec;
+  --color-quiet: #8a929e;
+  --color-text: #e3f2f1;
+  --color-text-dim: #9dbcbc;
+  --color-on-fill: #051419;
+  --color-focus: #e3f2f1;
+
+  --color-kick: #d67066;
+  --color-perc: #89d4d0;
+  --color-bass: #3e94a4;
+  --color-pad: #8e9ad7;
+  --color-melody: #eaaf8b;
+  --color-texture: #aab6bb;
+
+  --gap: 14px;
+  --padding: clamp(16px, 2vw, 32px);
+  --hair: 1px;
+  --button: 52px;
+  --play: clamp(64px, 6vw, 84px);
+  --knob: clamp(34px, 2.8vw, 44px);
+  --knob-large: clamp(140px, min(15vw, 24vh), 250px);
+  --fader: clamp(80px, 13vh, 130px);
+  --icon: 20px;
+  --master-width: clamp(210px, 18vw, 300px);
+  --blur: 18px;
+  --glow: 0 0 28px;
+  --ease: cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  background-color: var(--color-void);
+  color: var(--color-text);
+  overflow: hidden;
+}
+
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+  opacity: 0.14;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+button {
+  background: none;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 4px;
+}
+
+.VisuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.Icon {
+  display: inline-flex;
+  width: var(--icon);
+  height: var(--icon);
+  flex: none;
+}
+
+.Icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.Icon.isWide {
+  width: 44px;
+}
+
+.Instrument {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--master-width);
+  grid-template-rows: auto minmax(0, 1fr) auto auto;
+  grid-template-areas:
+    'transport transport'
+    '. master'
+    'raster master'
+    'layers master';
+  gap: var(--gap);
+  height: 100%;
+  min-height: 640px;
+  padding: var(--padding);
+  pointer-events: none;
+}
+
+.Instrument > *:not(.Screen) {
+  position: relative;
+  z-index: 2;
+  pointer-events: auto;
+}
+
+.WithIcon {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-text-dim);
+}
