@@ -48,10 +48,6 @@
   gap: 8px;
 }
 
-.ViewSwitch {
-  max-width: calc(5 * 44px + 4 * 8px);
-}
-
 .Switches.isOpen .ViewSwitch,
 .Switches.isOpen .LayoutSwitch {
   display: flex;

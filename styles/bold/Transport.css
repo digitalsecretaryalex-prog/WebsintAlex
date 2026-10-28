@@ -38,7 +38,8 @@
   flex: 1;
   justify-content: space-between;
   height: calc(var(--button) + 72px);
-  padding-right: 84px;
+  /* центр части 4 на оси кольца DJ-фильтра, под кнопкой сброса */
+  padding-right: calc(var(--master-width) / 2 - var(--button) / 2);
 }
 
 .PartsLine {

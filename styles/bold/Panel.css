@@ -1,3 +1,5 @@
+/* Варианты нижней панели. Во всех капсулы равные: 6 колонок по 1fr */
+
 .LayerDetails {
   --knob: 44px;
   display: flex;
@@ -21,7 +23,15 @@
   color: var(--color-text);
 }
 
+body[data-panel] .Layers {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  align-items: end;
+}
+
 body[data-panel] .Layer {
+  position: relative;
+  min-width: 0;
   cursor: pointer;
 }
 
@@ -35,34 +45,84 @@ body[data-panel] .VariationButton {
   height: 44px;
 }
 
-/* A: раскрыт только выбранный канал, остальные сжаты до кнопки, фейдера и Mute */
+body[data-panel] .Variations {
+  gap: 6px;
+}
+
+/* M: капсула короткая, по наведению вырастает вверх на месте */
+body[data-panel='m'] .LayerChannel,
+body[data-panel='c'] .LayerChannel {
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+body[data-panel='m'] .Layer .LayerDetails {
+  position: absolute;
+  left: -1px;
+  right: -1px;
+  bottom: calc(100% - 28px);
+  z-index: 3;
+  padding: 22px 8px 34px;
+  border-radius: 999px 999px 0 0;
+  border: var(--hair) solid var(--layer);
+  border-bottom: 0;
+  background: linear-gradient(
+    to top,
+    color-mix(in oklab, var(--layer) 16%, rgba(3, 6, 13, 0.9)),
+    rgba(3, 6, 13, 0.92)
+  );
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(10px);
+  transition:
+    opacity 220ms var(--ease),
+    transform 220ms var(--ease),
+    visibility 0s linear 220ms;
+}
+
+body[data-panel='m'] .Layer.isOpen .LayerDetails,
+body[data-panel='m'] .Layer:focus-within .LayerDetails {
+  opacity: 1;
+  visibility: visible;
+  transform: none;
+  transition:
+    opacity 220ms var(--ease),
+    transform 220ms var(--ease);
+}
+
+@media (hover: hover) {
+  body[data-panel='m'] .Layer:hover .LayerDetails {
+    opacity: 1;
+    visibility: visible;
+    transform: none;
+    transition:
+      opacity 220ms var(--ease),
+      transform 220ms var(--ease);
+  }
+}
+
+/* A: все капсулы одной высоты, детали видны только у выбранной */
 body[data-panel='a'] .Layers {
-  display: flex;
+  align-items: stretch;
 }
 
 body[data-panel='a'] .Layer {
-  flex: 1 1 0;
-  min-width: 0;
-  justify-content: space-between;
-  transition: flex-grow 320ms var(--ease);
-}
-
-body[data-panel='a'] .Layer.isSelected {
-  flex-grow: 2.2;
+  justify-content: center;
 }
 
 body[data-panel='a'] .Layer:not(.isSelected) .LayerDetails {
   display: none;
 }
 
-/* B: шесть узких полос и один инспектор выбранного канала */
+/* B: шесть равных полос и инспектор той же высоты */
 body[data-panel='b'] .Layers {
-  grid-template-columns: repeat(6, minmax(64px, 92px)) minmax(0, 1fr);
+  grid-template-columns: repeat(6, minmax(0, 1fr)) minmax(0, 3fr);
+  align-items: stretch;
 }
 
 body[data-panel='b'] .Layer {
   justify-content: space-between;
-  padding: 12px 6px 18px;
+  padding: 14px 6px 22px;
 }
 
 body[data-panel='b'] .Layer .LayerDetails {
@@ -73,8 +133,8 @@ body[data-panel='b'] .Layer .LayerDetails {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 20px 28px;
-  border-radius: 40px;
+  padding: 20px;
+  border-radius: 48px;
   border: var(--hair) solid color-mix(in oklab, var(--layer) 55%, transparent);
   background: linear-gradient(
     to bottom,
@@ -85,22 +145,13 @@ body[data-panel='b'] .Layer .LayerDetails {
 }
 
 .Inspector .LayerDetails {
+  --knob: 56px;
   display: flex;
-  gap: 24px;
-}
-
-.Inspector .Variations {
-  gap: 8px;
-}
-
-.Inspector .VariationButton {
-  width: 56px;
-  height: 44px;
+  gap: 22px;
 }
 
 .Inspector .LayerKnobs {
-  --knob: 56px;
-  gap: 28px;
+  gap: 24px;
 }
 
 .Inspector.is-kick {
@@ -122,39 +173,42 @@ body[data-panel='b'] .Layer .LayerDetails {
   --layer: var(--color-texture);
 }
 
-/* C: капсула компактная, детали всплывают над ней */
-body[data-panel='c'] .Layer {
-  position: relative;
-  justify-content: space-between;
-}
-
-body[data-panel='c'] .LayerChannel {
-  flex-wrap: wrap;
-  justify-content: center;
-}
-
+/* C: равные компактные капсулы, карточка деталей над капсулой */
 body[data-panel='c'] .Layer .LayerDetails {
   position: absolute;
-  bottom: calc(100% + 10px);
+  bottom: calc(100% + 12px);
   left: 50%;
   z-index: 3;
   display: none;
+  width: max-content;
   padding: 16px 18px;
   border-radius: 28px;
   border: var(--hair) solid color-mix(in oklab, var(--layer) 55%, transparent);
-  background: rgba(3, 6, 13, 0.82);
+  background: rgba(3, 6, 13, 0.86);
   backdrop-filter: blur(var(--blur));
   transform: translateX(-50%);
 }
 
-/* мостик над зазором: курсор не теряет наведение по пути к деталям */
+/* крайние карточки прижаты к краю своей капсулы, не вылезают за экран */
+body[data-panel='c'] .Layer:first-child .LayerDetails {
+  left: 0;
+  transform: none;
+}
+
+body[data-panel='c'] .Layer:last-child .LayerDetails {
+  left: auto;
+  right: 0;
+  transform: none;
+}
+
+/* мостик над зазором: курсор не теряет наведение по пути к карточке */
 body[data-panel='c'] .Layer .LayerDetails::after {
   content: '';
   position: absolute;
   left: 0;
   right: 0;
   top: 100%;
-  height: 12px;
+  height: 14px;
 }
 
 body[data-panel='c'] .Layer.isOpen .LayerDetails,
@@ -169,7 +223,8 @@ body[data-panel='c'] .Layer:focus-within .LayerDetails {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  body[data-panel='a'] .Layer {
+  body[data-panel='m'] .Layer .LayerDetails {
     transition: none;
+    transform: none;
   }
 }

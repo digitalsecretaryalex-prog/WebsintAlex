@@ -214,7 +214,7 @@ function initLayers() {
     } else {
       strip.append(launch.element, variations.element, knobRow, channelRow)
     }
-    if (panel === 'c') {
+    if (panel === 'c' || panel === 'm') {
       const more = createIconButton(
         'MoreButton',
         'more',
@@ -321,18 +321,20 @@ function readPalette() {
 
 const VIEWS = [
   { id: 'network', label: 'Вид: сеть' },
-  { id: 'multipolar', label: 'Вид: мультиполярный нейрон' },
-  { id: 'pyramidal', label: 'Вид: пирамидный нейрон коры' },
-  { id: 'purkinje', label: 'Вид: клетка Пуркинье' },
-  { id: 'synapse', label: 'Вид: синапс' },
-  { id: 'axon', label: 'Вид: миелиновый аксон' },
-  { id: 'flow', label: 'Вид: волна по коре' },
-  { id: 'storm', label: 'Вид: ядро' },
-  { id: 'ink', label: 'Вид: ленты-аксоны' }
+  { id: 'flight', label: 'Вид: полёт сквозь нейроны' },
+  { id: 'stream', label: 'Вид: лента нейронов' },
+  { id: 'field', label: 'Вид: поле нейронов' },
+  { id: 'cascade', label: 'Вид: каскад' }
 ]
 
 const LAYOUTS = [
   { id: 'layoutBold', page: 'index.html', label: 'Панель: исходная' },
+  {
+    id: 'panelM',
+    page: 'index.html',
+    panel: 'm',
+    label: 'Панель M: минимум, детали по наведению'
+  },
   {
     id: 'panelA',
     page: 'index.html',
@@ -356,10 +358,10 @@ const LAYOUTS = [
 // Вариант нижней панели: ?layout=a|b|c, без параметра исходная
 function readPanel() {
   const value = new URLSearchParams(location.search).get('layout')
-  return ['a', 'b', 'c'].includes(value) ? value : null
+  return ['m', 'a', 'b', 'c'].includes(value) ? value : null
 }
 
-// Режим берётся из адреса (?view=flow), чтобы ссылка открывала тот же вид
+// Вид берётся из адреса (?view=field), чтобы ссылка открывала тот же вид
 function readView() {
   const view = new URLSearchParams(location.search).get('view')
   return VIEWS.some(({ id }) => id === view) ? view : 'network'
