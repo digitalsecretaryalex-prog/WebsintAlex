@@ -1,173 +1,165 @@
-// Облака-нейроны из частиц: плотная оболочка и нити-дендриты.
-// Четыре бесконечных движения: полёт, лента, поле, каскад.
-// Нота слоя зажигает нейрон этого слоя, по нитям бежит импульс наружу.
+// Нейроны-шары из мягких точек: по оболочке текут холмы шума (две октавы).
+// Шары связаны линиями, по линиям бегут импульсы. Всё плывёт вправо.
+// Нота слоя зажигает шар этого слоя и пускает сигналы к соседям.
 import * as THREE from 'three'
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
+import { softMaterial, createDust } from './dust.js'
 
-const NEURONS = 14
-const SHELL = 4200
-const FIBRES = 7
-const FIBRE_POINTS = 150
-const REFRACTORY = 0.25
-// сколько облаков в кадре у каждого режима: меньше, но крупнее
-const ACTIVE = { flight: 12, stream: 8, field: 7, cascade: 9 }
+const NEURONS = 12
+const SURFACE = 3600
+const SEGMENTS = 20
+const MAX_SIGNALS = 160
+const REFRACTORY = 0.6
+// сколько шаров в кадре у каждого режима
+const ACTIVE = { flight: 10, stream: 8, field: 7, cascade: 8 }
+// скорость сноса вправо
+const DRIFT = { flight: 0.12, stream: 0.9, field: 0.25, cascade: 0.18 }
+// длина, на которой линия гаснет: в полёте связи только с ближними
+const REACH = { flight: 7, stream: 16, field: 16, cascade: 16 }
 
-// Мягкая круглая точка для Points
-const DOT_FRAGMENT = /* glsl */ `
-varying vec3 vColor;
-varying float vAlpha;
-void main() {
-  float d = length(gl_PointCoord - 0.5);
-  if (d > 0.5) discard;
-  float soft = smoothstep(0.5, 0.05, d);
-  gl_FragColor = vec4(vColor, soft * vAlpha);
+// 3D simplex noise (Ashima Arts, MIT)
+const SNOISE = /* glsl */ `
+vec3 mod289(vec3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
+vec4 mod289(vec4 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
+vec4 permute(vec4 x) { return mod289(((x * 34.0) + 1.0) * x); }
+vec4 taylorInvSqrt(vec4 r) { return 1.79284291400159 - 0.85373472095314 * r; }
+float snoise(vec3 v) {
+  const vec2 C = vec2(1.0 / 6.0, 1.0 / 3.0);
+  const vec4 D = vec4(0.0, 0.5, 1.0, 2.0);
+  vec3 i = floor(v + dot(v, C.yyy));
+  vec3 x0 = v - i + dot(i, C.xxx);
+  vec3 g = step(x0.yzx, x0.xyz);
+  vec3 l = 1.0 - g;
+  vec3 i1 = min(g.xyz, l.zxy);
+  vec3 i2 = max(g.xyz, l.zxy);
+  vec3 x1 = x0 - i1 + C.xxx;
+  vec3 x2 = x0 - i2 + C.yyy;
+  vec3 x3 = x0 - D.yyy;
+  i = mod289(i);
+  vec4 p = permute(permute(permute(
+    i.z + vec4(0.0, i1.z, i2.z, 1.0))
+    + i.y + vec4(0.0, i1.y, i2.y, 1.0))
+    + i.x + vec4(0.0, i1.x, i2.x, 1.0));
+  float n_ = 0.142857142857;
+  vec3 ns = n_ * D.wyz - D.xzx;
+  vec4 j = p - 49.0 * floor(p * ns.z * ns.z);
+  vec4 x_ = floor(j * ns.z);
+  vec4 y_ = floor(j - 7.0 * x_);
+  vec4 x = x_ * ns.x + ns.yyyy;
+  vec4 y = y_ * ns.x + ns.yyyy;
+  vec4 h = 1.0 - abs(x) - abs(y);
+  vec4 b0 = vec4(x.xy, y.xy);
+  vec4 b1 = vec4(x.zw, y.zw);
+  vec4 s0 = floor(b0) * 2.0 + 1.0;
+  vec4 s1 = floor(b1) * 2.0 + 1.0;
+  vec4 sh = -step(h, vec4(0.0));
+  vec4 a0 = b0.xzyw + s0.xzyw * sh.xxyy;
+  vec4 a1 = b1.xzyw + s1.xzyw * sh.zzww;
+  vec3 p0 = vec3(a0.xy, h.x);
+  vec3 p1 = vec3(a0.zw, h.y);
+  vec3 p2 = vec3(a1.xy, h.z);
+  vec3 p3 = vec3(a1.zw, h.w);
+  vec4 norm = taylorInvSqrt(vec4(dot(p0, p0), dot(p1, p1), dot(p2, p2), dot(p3, p3)));
+  p0 *= norm.x; p1 *= norm.y; p2 *= norm.z; p3 *= norm.w;
+  vec4 m = max(0.6 - vec4(dot(x0, x0), dot(x1, x1), dot(x2, x2), dot(x3, x3)), 0.0);
+  m = m * m;
+  return 42.0 * dot(m * m, vec4(dot(p0, x0), dot(p1, x1), dot(p2, x2), dot(p3, x3)));
 }
 `
 
-const VERTEX = /* glsl */ `
+const BALL_VERTEX = /* glsl */ `
+${SNOISE}
 uniform vec3 uCenter[${NEURONS}];
 uniform float uRadius[${NEURONS}];
 uniform float uFlash[${NEURONS}];
-uniform float uFireAge[${NEURONS}];
 uniform vec3 uFlashColor[${NEURONS}];
 uniform float uAlive[${NEURONS}];
 uniform float uFade[${NEURONS}];
 uniform float uTime;
-uniform float uBreath;
-uniform float uSwirl;
+uniform float uStream;
+uniform float uWave;
 uniform float uSize;
-uniform float uSpeed;
 uniform float uDensity;
 uniform float uSaturation;
 uniform float uDim;
-uniform vec3 uCore;
-uniform vec3 uMid;
-uniform vec3 uRim;
+uniform vec3 uLow;
+uniform vec3 uHigh;
 uniform vec3 uCursor;
 uniform float uActivity;
 attribute float aNeuron;
-attribute float aFibre;
-attribute float aT;
-attribute float aMix;
-attribute float aNoise;
-attribute float aScale;
+attribute float aDepth;
 attribute float aRank;
+attribute float aScale;
 varying vec3 vColor;
 varying float vAlpha;
 void main() {
   int n = int(aNeuron);
-  vec3 p = position;
-  if (aFibre < 0.5) {
-    // оболочка дышит и медленно закручивается
-    float t = uTime * uBreath + aNoise * 6.2831 + aNeuron * 1.7;
-    p *= 1.0 + sin(t) * 0.06 * (0.4 + aMix);
-    float angle = uTime * uSwirl + aNoise * 6.2831;
-    p.xz = mat2(cos(angle), -sin(angle), sin(angle), cos(angle)) * p.xz;
-  } else {
-    // нити колышутся, кончики сильнее
-    p += vec3(
-      sin(uTime * 0.8 + aNoise * 6.28),
-      cos(uTime * 0.6 + aNoise * 4.0),
-      sin(uTime * 0.7 + aNoise * 2.0)
-    ) * 0.06 * aT;
-  }
-  vec3 world = uCenter[n] + p * uRadius[n];
+  vec3 direction = position;
+  // холмы: крупная октава и мелкая, текут по поверхности вправо
+  vec3 flow = direction * 1.6 + vec3(-uStream, 0.0, aNeuron * 3.7);
+  float hill = snoise(flow + uTime * 0.15)
+    + 0.4 * snoise(flow * 2.0 + uTime * 0.3);
+  float height = smoothstep(-0.9, 1.1, hill);
+  vec3 world = uCenter[n] + direction * uRadius[n] * (aDepth + hill * uWave);
+
+  // курсор раздвигает точки
   vec3 toPoint = world - uCursor;
-  float fall = smoothstep(0.6, 0.0, length(toPoint));
-  world += normalize(toPoint + vec3(0.0001)) * fall * 0.35 * uActivity;
+  float fall = smoothstep(0.7, 0.0, length(toPoint));
+  world += normalize(toPoint + vec3(0.0001)) * fall * 0.3 * uActivity;
   vec4 view = viewMatrix * vec4(world, 1.0);
 
-  vec3 base;
-  if (aFibre < 0.5) {
-    base = mix(uCore, uMid, smoothstep(0.25, 0.85, aMix));
-    base = mix(base, uRim, clamp((aMix - 0.7) * 3.0, 0.0, 1.0));
-  } else {
-    base = mix(uRim, uMid, aT) * (1.0 - aT * 0.5);
-  }
-  vec3 tint = mix(vec3(1.0), uFlashColor[n], 0.4 + 0.6 * uSaturation);
-  float pulse = 0.0;
-  if (aFibre > 0.5) {
-    float d = aT - uFireAge[n] * uSpeed;
-    pulse = exp(-d * d / 0.004) * exp(-uFireAge[n] * 1.2);
-  }
-  float flash = uFlash[n] * (aFibre < 0.5 ? aMix : 0.3);
-  vColor = base * (0.9 + uAlive[n] * 0.5) * uDim + tint * (flash * 0.9 + pulse * 1.6);
-  vAlpha = (aRank < uDensity ? 0.8 : 0.0) * uFade[n];
+  vec3 base = mix(uLow, uHigh, height) * (0.55 + uAlive[n] * 0.7) * uDim;
+  vec3 tint = mix(vec3(0.8), uFlashColor[n], 0.4 + 0.6 * uSaturation);
+  vColor = base + tint * uFlash[n] * (0.4 + height) * 0.9;
+  vAlpha = (aRank < uDensity ? 0.5 : 0.0) * (0.45 + 0.55 * height) * uFade[n];
 
-  gl_PointSize = max(1.0, uSize * aScale / -view.z);
+  gl_PointSize = max(1.5, uSize * aScale / -view.z);
   gl_Position = projectionMatrix * view;
 }
 `
 
-function buildGeometry() {
-  const count = NEURONS * (SHELL + FIBRES * FIBRE_POINTS)
+// Импульсы на линиях: цвет и размер у каждой точки свои
+const SPARK_VERTEX = /* glsl */ `
+uniform float uPixel;
+attribute vec3 aColor;
+attribute float aSize;
+varying vec3 vColor;
+varying float vAlpha;
+void main() {
+  vec4 view = modelViewMatrix * vec4(position, 1.0);
+  vColor = aColor;
+  vAlpha = 1.0;
+  gl_PointSize = aSize * uPixel / -view.z;
+  gl_Position = projectionMatrix * view;
+}
+`
+
+// Точки оболочки: сфера Фибоначчи, 90 % у поверхности, 10 % внутри
+function buildBalls() {
+  const count = NEURONS * SURFACE
   const positions = new Float32Array(count * 3)
   const attributes = {
     aNeuron: new Float32Array(count),
-    aFibre: new Float32Array(count),
-    aT: new Float32Array(count),
-    aMix: new Float32Array(count),
-    aNoise: new Float32Array(count),
-    aScale: new Float32Array(count),
-    aRank: new Float32Array(count)
+    aDepth: new Float32Array(count),
+    aRank: new Float32Array(count),
+    aScale: new Float32Array(count)
   }
+  const golden = Math.PI * (3 - Math.sqrt(5))
   let i = 0
-  function push(neuron, x, y, z, fields) {
-    positions.set([x, y, z], i * 3)
-    attributes.aNeuron[i] = neuron
-    attributes.aNoise[i] = Math.random()
-    attributes.aRank[i] = Math.random()
-    Object.entries(fields).forEach(
-      ([key, value]) => (attributes[key][i] = value)
-    )
-    i++
-  }
   for (let neuron = 0; neuron < NEURONS; neuron++) {
-    // оболочка: точка на сфере (Марсалья), радиус смещён к поверхности
-    for (let k = 0; k < SHELL; k++) {
-      let u, v, s
-      do {
-        u = Math.random() * 2 - 1
-        v = Math.random() * 2 - 1
-        s = u * u + v * v
-      } while (s >= 1 || s === 0)
-      const factor = 2 * Math.sqrt(1 - s)
-      const shell = Math.pow(Math.random(), 0.28)
-      const r = 0.5 + shell * 0.5
-      push(neuron, u * factor * r, v * factor * r, (1 - 2 * s) * r, {
-        aMix: shell,
-        aScale: 0.45 + Math.random() * 0.8
-      })
-    }
-    // нити-дендриты: выходят из оболочки и изгибаются
-    for (let f = 0; f < FIBRES; f++) {
-      const direction = new THREE.Vector3(
-        Math.random() * 2 - 1,
-        Math.random() * 2 - 1,
-        Math.random() * 2 - 1
-      ).normalize()
-      const bend = new THREE.Vector3(
-        Math.random() * 2 - 1,
-        Math.random() * 2 - 1,
-        Math.random() * 2 - 1
-      )
-        .cross(direction)
-        .normalize()
-      const length = 1.2 + Math.random()
-      for (let k = 0; k < FIBRE_POINTS; k++) {
-        const t = k / FIBRE_POINTS
-        const point = direction
-          .clone()
-          .multiplyScalar(1 + t * length)
-          .addScaledVector(bend, Math.sin(t * Math.PI) * 0.35 * length)
-        const jitter = 0.03 * (1 - t * 0.5)
-        push(
-          neuron,
-          point.x + (Math.random() - 0.5) * jitter,
-          point.y + (Math.random() - 0.5) * jitter,
-          point.z + (Math.random() - 0.5) * jitter,
-          { aFibre: 1, aT: t, aMix: 1, aScale: 0.5 + (1 - t) * 0.7 }
-        )
-      }
+    for (let k = 0; k < SURFACE; k++) {
+      const y = 1 - (2 * (k + 0.5)) / SURFACE
+      const ring = Math.sqrt(1 - y * y)
+      const angle = k * golden + neuron
+      positions.set([Math.cos(angle) * ring, y, Math.sin(angle) * ring], i * 3)
+      attributes.aNeuron[i] = neuron
+      attributes.aDepth[i] =
+        Math.random() < 0.9
+          ? 0.82 + 0.18 * Math.sqrt(Math.random())
+          : 0.2 + Math.random() * 0.6
+      attributes.aRank[i] = Math.random()
+      attributes.aScale[i] = 0.6 + Math.random() * 0.7
+      i++
     }
   }
   const geometry = new THREE.BufferGeometry()
@@ -178,83 +170,111 @@ function buildGeometry() {
   return geometry
 }
 
+// Точки с цветом и размером, позиции пишет JS каждый кадр
+function createSparks(count, pixel) {
+  const positions = new Float32Array(count * 3).fill(999)
+  const colors = new Float32Array(count * 3)
+  const sizes = new Float32Array(count)
+  const geometry = new THREE.BufferGeometry()
+  geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3))
+  geometry.setAttribute('aColor', new THREE.BufferAttribute(colors, 3))
+  geometry.setAttribute('aSize', new THREE.BufferAttribute(sizes, 1))
+  const points = new THREE.Points(
+    geometry,
+    softMaterial({ uPixel: { value: pixel } }, SPARK_VERTEX)
+  )
+  points.frustumCulled = false
+  return { points, positions, colors, sizes, geometry }
+}
+
 export function createSwarm(
   { renderer, colors, reducedMotion, pointer },
   mode
 ) {
   const scene = new THREE.Scene()
   scene.background = colors.screen
-  const camera = new THREE.PerspectiveCamera(45, 1, 0.05, 60)
-  camera.position.set(0, 0, 3)
+  const camera = new THREE.PerspectiveCamera(45, 1, 0.05, 80)
+  const focus = new THREE.Vector3(0, 0.3, mode === 'flight' ? -6 : -4)
+  camera.position.set(0, 0.3, 3)
 
-  const toVector = (color) => new THREE.Vector3(color.r, color.g, color.b)
+  // мышь: крутить ракурс, правой кнопкой или с Shift двигать, колесом ближе
+  const controls = new OrbitControls(camera, renderer.domElement)
+  controls.target.copy(focus)
+  controls.enableDamping = true
+  controls.enablePan = true
+  controls.screenSpacePanning = true
+  controls.minDistance = 1.5
+  controls.maxDistance = 12
+  controls.update()
+
+  const dust = createDust({ renderer, colors }, focus)
+  scene.add(dust.points)
+
   const neurons = Array.from({ length: NEURONS }, (_, index) => ({
-    position: new THREE.Vector3(),
+    position: new THREE.Vector3(0, 0, 99),
     home: new THREE.Vector3(),
     radius: 0.5,
+    bound: 6,
     layer: index % 6,
     fired: -Infinity,
-    seed: Math.random() * 100
+    color: colors.layers[index % 6],
+    seed: Math.random() * 100,
+    active: false
   }))
 
+  const pixel = renderer.getPixelRatio()
   const uniforms = {
     uCenter: { value: neurons.map((neuron) => neuron.position) },
     uRadius: { value: new Array(NEURONS).fill(0.5) },
     uFlash: { value: new Array(NEURONS).fill(0) },
-    uFireAge: { value: new Array(NEURONS).fill(99) },
     uFlashColor: { value: neurons.map(() => new THREE.Vector3(1, 1, 1)) },
     uAlive: { value: new Array(NEURONS).fill(0) },
-    uFade: { value: new Array(NEURONS).fill(1) },
+    uFade: { value: new Array(NEURONS).fill(0) },
     uTime: { value: 0 },
-    uBreath: { value: 1.4 },
-    uSwirl: { value: 0.05 },
-    uSize: { value: 24 * renderer.getPixelRatio() },
-    uSpeed: { value: 0.8 },
+    uStream: { value: 0 },
+    uWave: { value: 0.12 },
+    uSize: { value: 20 * pixel },
     uDensity: { value: 1 },
     uSaturation: { value: 1 },
     uDim: { value: 1 },
-    uCore: { value: toVector(colors.quiet).multiplyScalar(0.6) },
-    uMid: { value: toVector(colors.signal) },
-    uRim: { value: toVector(colors.ice) },
+    uLow: { value: new THREE.Color() },
+    uHigh: { value: new THREE.Color() },
     uCursor: { value: new THREE.Vector3(0, 0, 99) },
     uActivity: { value: 0 }
   }
-  const points = new THREE.Points(
-    buildGeometry(),
-    new THREE.ShaderMaterial({
-      uniforms,
-      vertexShader: VERTEX,
-      fragmentShader: DOT_FRAGMENT,
+  const balls = new THREE.Points(
+    buildBalls(),
+    softMaterial(uniforms, BALL_VERTEX)
+  )
+  balls.frustumCulled = false
+  scene.add(balls)
+
+  // все пары шаров: линия, постоянный импульс и сигналы от спайков
+  let pairs = []
+  const maxPairs = (NEURONS * (NEURONS - 1)) / 2
+  const linePositions = new Float32Array(maxPairs * SEGMENTS * 6)
+  const lineColors = new Float32Array(maxPairs * SEGMENTS * 6)
+  const lineGeometry = new THREE.BufferGeometry()
+  lineGeometry.setAttribute(
+    'position',
+    new THREE.BufferAttribute(linePositions, 3)
+  )
+  lineGeometry.setAttribute('color', new THREE.BufferAttribute(lineColors, 3))
+  const lines = new THREE.LineSegments(
+    lineGeometry,
+    new THREE.LineBasicMaterial({
+      vertexColors: true,
       transparent: true,
       depthWrite: false,
       blending: THREE.AdditiveBlending
     })
   )
-  points.frustumCulled = false
-  scene.add(points)
+  lines.frustumCulled = false
+  scene.add(lines)
 
-  // Каскад: искры летят от сработавшего нейрона к соседу
-  const SPARKS = 64
-  const sparkPositions = new Float32Array(SPARKS * 3).fill(99)
-  const sparkColors = new Float32Array(SPARKS * 3)
-  const sparkGeometry = new THREE.BufferGeometry()
-  sparkGeometry.setAttribute(
-    'position',
-    new THREE.BufferAttribute(sparkPositions, 3)
-  )
-  sparkGeometry.setAttribute('color', new THREE.BufferAttribute(sparkColors, 3))
-  const sparkMaterial = new THREE.PointsMaterial({
-    size: 0.16,
-    vertexColors: true,
-    transparent: true,
-    depthWrite: false,
-    blending: THREE.AdditiveBlending
-  })
-  const sparkPoints = new THREE.Points(sparkGeometry, sparkMaterial)
-  sparkPoints.frustumCulled = false
-  scene.add(sparkPoints)
-  const sparks = []
-  const queue = []
+  const sparks = createSparks(maxPairs + MAX_SIGNALS, pixel)
+  scene.add(sparks.points)
+  const signals = []
 
   // половина видимой ширины и высоты на расстоянии depth от камеры
   function viewHalf(depth) {
@@ -262,209 +282,280 @@ export function createSwarm(
     return [h * camera.aspect, h]
   }
 
-  // Свободная зона экрана: над растром и под транспортом, центр чуть выше середины
+  let spread = 0
+
+  // полёт: шар рождается вдали в коридоре над панелью, чуть левее,
+  // потому что по пути его сносит вправо
+  function spawnFlight(neuron, z) {
+    neuron.position.set(
+      (Math.random() * 2 - 1.3) * 2,
+      0.3 + (1 - spread) + (Math.random() * 2 - 1) * 0.9,
+      z
+    )
+  }
+
   function place(neuron, index) {
-    neuron.active = index < ACTIVE[mode]
-    if (!neuron.active) {
-      neuron.position.set(0, 0, 99)
+    const count = ACTIVE[mode]
+    neuron.active = index < count
+    if (!neuron.active) return
+    if (mode === 'flight') {
+      spawnFlight(neuron, -16 + (index / count) * 15)
+      neuron.radius = 0.45 + Math.random() * 0.25
       return
     }
-    const count = ACTIVE[mode]
-    if (mode === 'flight') {
-      neuron.position.set(
-        (Math.random() * 2 - 1) * 1.8,
-        0.35 + (Math.random() * 2 - 1) * 0.9,
-        -15 + (index / count) * 16
-      )
-      neuron.radius = 0.5 + Math.random() * 0.3
-    } else if (mode === 'stream') {
-      const depth = 2.5 + ((index * 0.53) % 1) * 4
-      const [w, h] = viewHalf(depth + 3)
-      neuron.position.set(
-        -w - 0.8 + (index / count) * (2 * w + 1.6),
-        h * (0.15 + ((index * 0.71) % 1) * 0.45),
-        -depth
-      )
-      neuron.radius = 0.45 + ((index * 0.37) % 1) * 0.3
-    } else {
-      // поле и каскад: два ряда со сдвигом, без наложений
-      const perRow = Math.ceil(count / 2)
-      const row = index < perRow ? 0 : 1
-      const column = row === 0 ? index : index - perRow
-      const depth = 4.2 + ((index * 0.37) % 1) * 0.8
-      const [w, h] = viewHalf(depth + 3)
-      const step = (2 * w) / perRow
-      neuron.home.set(
-        -w + (column + 0.5 + row * 0.5) * step,
-        row === 0 ? h * 0.42 : h * 0.0,
-        -depth
-      )
-      neuron.position.copy(neuron.home)
-      neuron.radius = Math.min(0.75, step * 0.26)
-    }
+    // остальные режимы: ряды по ширине кадра, снос вправо по кругу
+    const depth =
+      mode === 'stream'
+        ? 5.5 + ((index * 0.53) % 1) * 4
+        : 6.8 + ((index * 0.37) % 1) * 1.2
+    const [w, h] = viewHalf(depth)
+    const step = (2 * w + 2) / count
+    neuron.bound = w + 1
+    neuron.home.set(
+      -w - 1 + (index + 0.5) * step,
+      0.3 + h * (index % 2 ? 0.05 : 0.4) + ((index * 0.71) % 1) * h * 0.1,
+      3 - depth
+    )
+    // при скрытой панели нижний ряд уходит вниз, на освободившееся место
+    neuron.drop = h * (index % 2 ? 0.6 : 0.15)
+    neuron.position.copy(neuron.home)
+    neuron.radius =
+      Math.min(0.8, step * 0.3) * (0.85 + ((index * 0.29) % 1) * 0.3)
   }
 
   function layout() {
     neurons.forEach(place)
+    const active = neurons.filter((neuron) => neuron.active)
+    pairs = []
+    active.forEach((a, i) =>
+      active.slice(i + 1).forEach((b) =>
+        pairs.push({
+          a,
+          b,
+          axis: new THREE.Vector3(
+            Math.random() * 2 - 1,
+            Math.random() * 2 - 1,
+            Math.random() * 2 - 1
+          ).normalize(),
+          phase: Math.random(),
+          rate: 0.12 + Math.random() * 0.12,
+          forward: Math.random() < 0.5,
+          strength: 0,
+          from: new THREE.Vector3(),
+          to: new THREE.Vector3(),
+          bend: new THREE.Vector3()
+        })
+      )
+    )
+    linePositions.fill(0)
+    lineColors.fill(0)
   }
 
-  // Нейрон вспыхивает, если не в рефрактерном периоде
-  function fire(neuron, color, now, generation = 0) {
-    if (now - neuron.fired < REFRACTORY) return false
+  // точка на изогнутой линии пары, t от 0 (шар a) до 1 (шар b)
+  function curve(pair, t, out) {
+    return out
+      .copy(pair.from)
+      .lerp(pair.to, t)
+      .addScaledVector(pair.bend, Math.sin(t * Math.PI))
+  }
+
+  // спайк зажигает шар и пускает сигналы ко всем соседям
+  function fire(neuron, color, now, strength = 1, generation = 0) {
+    if (now - neuron.fired < REFRACTORY) return
     neuron.fired = now
     neuron.color = color
-    if (mode === 'cascade' && generation < 4) {
-      // соседи по полю срабатывают с задержкой: лавина
-      const nearest = neurons
-        .filter((other) => other.active && other !== neuron)
-        .sort(
-          (a, b) =>
-            a.position.distanceTo(neuron.position) -
-            b.position.distanceTo(neuron.position)
-        )
-        .slice(0, 3)
-      nearest.forEach((other) => {
-        if (Math.random() > Math.pow(0.72, generation + 1)) return
-        const delay = 0.22 + Math.random() * 0.18
-        queue.push({
-          neuron: other,
-          color,
-          at: now + delay,
-          generation: generation + 1
-        })
-        if (sparks.length < SPARKS) {
-          sparks.push({
-            from: neuron.position.clone(),
-            to: other,
-            born: now,
-            delay,
-            color
-          })
-        }
+    neuron.strength = strength
+    pairs.forEach((pair) => {
+      if (pair.a !== neuron && pair.b !== neuron) return
+      if (signals.length >= MAX_SIGNALS) return
+      signals.push({
+        pair,
+        forward: pair.a === neuron,
+        born: now,
+        t: 0,
+        color,
+        strength,
+        generation
       })
-    }
-    return true
+    })
   }
 
-  const handled = new Set()
-  let time = 0
-  const lookAt = new THREE.Vector3()
+  const seen = new WeakSet()
+  const point = new THREE.Vector3()
+  const direction = new THREE.Vector3()
+  const lineColor = new THREE.Color()
+  const low = new THREE.Color()
+  const high = new THREE.Color()
   const raycaster = new THREE.Raycaster()
   const plane = new THREE.Plane()
   const normal = new THREE.Vector3()
   const hit = new THREE.Vector3()
+  let time = 0
+  let stream = 0
 
-  function update({ dt, look, speed, spikes }) {
+  function update({ dt, target, look, speed, spikes }) {
     const motion = reducedMotion ? 0.15 : 1
     time += dt
     const drift = dt * speed * (0.45 + look.energy * 0.7) * motion
+    stream += drift * 0.6
+    spread += ((target.panelHidden ? 1 : 0) - spread) * (1 - Math.exp(-dt * 2))
 
-    // ноты слоёв: каждый спайк зажигает нейрон своего слоя
+    // ноты слоёв: спайк зажигает шар своего слоя
     spikes.spikes.forEach((spike) => {
-      if (handled.has(spike.born)) return
-      handled.add(spike.born)
+      if (seen.has(spike)) return
+      seen.add(spike)
       const candidates = neurons.filter(
         (neuron) => neuron.active && neuron.layer === spike.layer
       )
       if (!candidates.length) return
       const target = candidates[Math.floor(Math.random() * candidates.length)]
-      fire(target, colors.layers[spike.layer], time)
+      fire(target, colors.layers[spike.layer], time, spike.strength)
     })
-    handled.forEach((born) => {
-      if (!spikes.spikes.some((spike) => spike.born === born))
-        handled.delete(born)
-    })
-    for (let i = queue.length - 1; i >= 0; i--) {
-      if (queue[i].at <= time) {
-        const item = queue.splice(i, 1)[0]
-        fire(item.neuron, item.color, time, item.generation)
-      }
-    }
 
     neurons.forEach((neuron, index) => {
       if (!neuron.active) {
         uniforms.uFade.value[index] = 0
         return
       }
+      let fade = 1
       if (mode === 'flight') {
         neuron.position.z += drift * 1.4
-        if (neuron.position.z > 0.8) {
-          neuron.position.set(
-            (Math.random() * 2 - 1) * 1.8,
-            0.35 + (Math.random() * 2 - 1) * 0.9,
-            -13
-          )
-        }
-      } else if (mode === 'stream') {
-        const depth = -neuron.position.z
-        const [w] = viewHalf(depth + 3)
-        neuron.position.x += ((drift * 0.9) / depth) * 3
-        if (neuron.position.x > w + 1.2) neuron.position.x = -w - 1.2
+        neuron.position.x += drift * DRIFT.flight
+        if (neuron.position.z > 1.5) spawnFlight(neuron, -15)
+        const distance = camera.position.distanceTo(neuron.position)
+        fade =
+          THREE.MathUtils.smoothstep(distance, 2.4, 4.4) *
+          (1 - THREE.MathUtils.smoothstep(distance, 13, 18))
       } else {
-        // поле живёт на месте, каскад медленно плывёт по кругу
-        const [w] = viewHalf(-neuron.home.z + 3)
-        if (mode === 'cascade') {
-          neuron.home.x += drift * 0.12
-          if (neuron.home.x > w + 0.8) neuron.home.x = -w - 0.8
-        }
+        // снос вправо, у правого края шар тает и выходит слева
+        const parallax = mode === 'stream' ? 7 / (3 - neuron.home.z) : 1
+        neuron.home.x += drift * DRIFT[mode] * parallax
+        if (neuron.home.x > neuron.bound) neuron.home.x -= 2 * neuron.bound
         neuron.position.set(
           neuron.home.x + Math.sin(time * 0.2 + neuron.seed) * 0.12 * motion,
-          neuron.home.y + Math.cos(time * 0.17 + neuron.seed) * 0.1 * motion,
+          neuron.home.y -
+            neuron.drop * spread +
+            Math.cos(time * 0.17 + neuron.seed) * 0.1 * motion,
           neuron.home.z
         )
+        fade =
+          1 -
+          THREE.MathUtils.smoothstep(
+            Math.abs(neuron.home.x),
+            neuron.bound - 1.4,
+            neuron.bound
+          )
       }
-      // мягкое появление издалека и исчезновение у камеры
-      const distance = camera.position.z - neuron.position.z
-      uniforms.uFade.value[index] =
-        mode === 'flight'
-          ? THREE.MathUtils.smoothstep(distance, 2.4, 4.4) *
-            (1 - THREE.MathUtils.smoothstep(distance, 11, 17))
-          : 1
+      neuron.fade = fade
       const age = time - neuron.fired
-      uniforms.uFireAge.value[index] = age
-      uniforms.uFlash.value[index] = Math.exp(-age * 3)
-      uniforms.uRadius.value[index] = neuron.radius
+      uniforms.uFade.value[index] = fade
+      uniforms.uFlash.value[index] = Math.exp(-age * 3) * (neuron.strength ?? 1)
+      uniforms.uRadius.value[index] =
+        neuron.radius * (1 + Math.sin(time * speed + neuron.seed) * 0.04)
       uniforms.uAlive.value[index] = look.alive[neuron.layer]
-      if (neuron.color) {
-        uniforms.uFlashColor.value[index].set(
-          neuron.color.r,
-          neuron.color.g,
-          neuron.color.b
-        )
-      }
+      uniforms.uFlashColor.value[index].set(
+        neuron.color.r,
+        neuron.color.g,
+        neuron.color.b
+      )
     })
 
-    // искры каскада
-    sparkPositions.fill(99)
-    for (let i = sparks.length - 1; i >= 0; i--) {
-      const spark = sparks[i]
-      const t = (time - spark.born) / spark.delay
-      if (t >= 1) {
-        sparks.splice(i, 1)
-        continue
+    // линии между всеми шарами: от поверхности до поверхности, с изгибом
+    low.copy(colors.signal).lerp(colors.quiet, 1 - look.saturation)
+    pairs.forEach((pair, index) => {
+      direction.subVectors(pair.b.position, pair.a.position)
+      const length = direction.length()
+      direction.divideScalar(length || 1)
+      pair.from.copy(pair.a.position).addScaledVector(direction, pair.a.radius)
+      pair.to.copy(pair.b.position).addScaledVector(direction, -pair.b.radius)
+      pair.bend
+        .crossVectors(direction, pair.axis)
+        .normalize()
+        .multiplyScalar(length * 0.12)
+      pair.strength =
+        Math.min(pair.a.fade, pair.b.fade) *
+        (1 - THREE.MathUtils.smoothstep(length, 1.5, REACH[mode])) *
+        look.dim
+      lineColor
+        .copy(pair.a.color)
+        .lerp(pair.b.color, 0.5)
+        .lerp(colors.ice, 0.5 + 0.5 * (1 - look.saturation))
+        .multiplyScalar(0.22 * pair.strength)
+      for (let s = 0; s < SEGMENTS; s++) {
+        const offset = (index * SEGMENTS + s) * 6
+        curve(pair, s / SEGMENTS, point).toArray(linePositions, offset)
+        curve(pair, (s + 1) / SEGMENTS, point).toArray(
+          linePositions,
+          offset + 3
+        )
+        lineColor.toArray(lineColors, offset)
+        lineColor.toArray(lineColors, offset + 3)
       }
-      const at = spark.from.clone().lerp(spark.to.position, t)
-      sparkPositions.set([at.x, at.y, at.z], i * 3)
-      sparkColors.set([spark.color.r, spark.color.g, spark.color.b], i * 3)
-    }
-    sparkGeometry.attributes.position.needsUpdate = true
-    sparkGeometry.attributes.color.needsUpdate = true
+    })
+    lineGeometry.setDrawRange(0, pairs.length * SEGMENTS * 2)
+    lineGeometry.attributes.position.needsUpdate = true
+    lineGeometry.attributes.color.needsUpdate = true
 
+    // постоянные импульсы: по одному на линию, бегут в свою сторону
+    sparks.positions.fill(999)
+    pairs.forEach((pair, index) => {
+      let t = (pair.phase + time * pair.rate * speed * motion) % 1
+      if (!pair.forward) t = 1 - t
+      curve(pair, t, point).toArray(sparks.positions, index * 3)
+      lineColor
+        .copy(colors.ice)
+        .multiplyScalar(0.7 * pair.strength * Math.sin(t * Math.PI))
+        .toArray(sparks.colors, index * 3)
+      sparks.sizes[index] = 36
+    })
+
+    // сигналы спайков цветом слоя; в каскаде приход зажигает соседа
+    for (let i = signals.length - 1; i >= 0; i--) {
+      const signal = signals[i]
+      const length = signal.pair.from.distanceTo(signal.pair.to)
+      signal.t = ((time - signal.born) * speed) / (0.5 + length * 0.18)
+      if (signal.t < 1) continue
+      signals.splice(i, 1)
+      const next = signal.forward ? signal.pair.b : signal.pair.a
+      const chance = Math.pow(0.7, signal.generation + 1)
+      if (mode === 'cascade' && signal.generation < 4 && Math.random() < chance)
+        fire(
+          next,
+          signal.color,
+          time,
+          signal.strength * 0.85,
+          signal.generation + 1
+        )
+    }
+    signals.forEach((signal, index) => {
+      const t = signal.forward ? signal.t : 1 - signal.t
+      const slot = pairs.length + index
+      curve(signal.pair, t, point).toArray(sparks.positions, slot * 3)
+      lineColor
+        .copy(signal.color)
+        .multiplyScalar(signal.strength * signal.pair.strength * 1.4)
+        .toArray(sparks.colors, slot * 3)
+      sparks.sizes[slot] = 64
+    })
+    sparks.geometry.attributes.position.needsUpdate = true
+    sparks.geometry.attributes.aColor.needsUpdate = true
+    sparks.geometry.attributes.aSize.needsUpdate = true
+
+    high.copy(colors.ice).lerp(colors.quiet, (1 - look.saturation) * 0.5)
+    uniforms.uLow.value.copy(low).multiplyScalar(0.6)
+    uniforms.uHigh.value.copy(high)
     uniforms.uTime.value = time * motion
-    uniforms.uBreath.value = 1.4 * speed
-    uniforms.uSwirl.value = 0.04 + look.energy * 0.08
-    uniforms.uSpeed.value = speed * 0.9
+    uniforms.uStream.value = stream
+    uniforms.uWave.value = 0.08 + look.energy * 0.1
     uniforms.uDensity.value = look.density
     uniforms.uSaturation.value = look.saturation
     uniforms.uDim.value = look.dim
+    dust.update(time, motion)
 
-    // курсор: лёгкий параллакс камеры и пустота в облаках
-    camera.position.x += (pointer.ndc.x * 0.25 - camera.position.x) * 0.04
-    camera.position.y += (pointer.ndc.y * 0.15 - camera.position.y) * 0.04
-    lookAt.set(camera.position.x * 0.3, camera.position.y * 0.3, -4)
-    camera.lookAt(lookAt)
+    // курсор раздвигает точки там, куда указывает
+    controls.update()
     camera.getWorldDirection(normal)
-    plane.setFromNormalAndCoplanarPoint(normal, new THREE.Vector3(0, 0, -2))
+    plane.setFromNormalAndCoplanarPoint(normal, controls.target)
     raycaster.setFromCamera(pointer.ndc, camera)
     if (raycaster.ray.intersectPlane(plane, hit))
       uniforms.uCursor.value.lerp(hit, 0.12)
@@ -477,7 +568,13 @@ export function createSwarm(
     layout()
   }
 
-  return { scene, camera, update, resize }
+  return {
+    scene,
+    camera,
+    update,
+    resize,
+    dispose: () => controls.dispose()
+  }
 }
 
 export const createFlight = (context) => createSwarm(context, 'flight')

@@ -2,6 +2,7 @@
 import * as THREE from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { frameCamera } from '../visuals.js'
+import { createDust } from './dust.js'
 
 const NEURONS = 520
 const NEIGHBOURS = 3
@@ -131,6 +132,8 @@ export function createNetwork({ renderer, colors, reducedMotion }) {
   const scene = new THREE.Scene()
   scene.background = screenColor
   scene.fog = new THREE.FogExp2(screenColor, 0.12)
+  const dust = createDust({ renderer, colors }, new THREE.Vector3())
+  scene.add(dust.points)
 
   const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 50)
   camera.position.set(0, 0.38, 1)
@@ -309,6 +312,7 @@ export function createNetwork({ renderer, colors, reducedMotion }) {
     impulseGeometry.attributes.position.needsUpdate = true
     impulseMaterial.opacity = look.dim
 
+    dust.update(frame.time, reducedMotion ? 0.15 : 1)
     controls.autoRotateSpeed = 0.35 * (target.bpm / 84)
     controls.update()
   }
