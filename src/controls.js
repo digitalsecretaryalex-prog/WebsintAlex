@@ -446,26 +446,29 @@ export function createViewSwitch(views, current, onSelect) {
   return { element, setState }
 }
 
-// Переключатель раскладок: ссылки на страницы, адрес хранит выбранный вид
+// Переключатель раскладок: ссылки на страницы, вид нейронов сохраняется
 export function createLayoutSwitch(layouts, current) {
   const element = document.createElement('nav')
   element.className = 'LayoutSwitch'
   element.setAttribute('aria-label', 'Раскладка')
-  const links = layouts.map(({ id, page, label }) => {
+  const links = layouts.map((layout) => {
     const link = document.createElement('a')
     link.className = 'ViewButton'
-    link.setAttribute('aria-label', label)
-    if (id === current) {
+    link.setAttribute('aria-label', layout.label)
+    if (layout.id === current) {
       link.classList.add('isOn')
       link.setAttribute('aria-current', 'page')
     }
-    link.appendChild(createIcon(id))
+    link.appendChild(createIcon(layout.id))
     element.appendChild(link)
-    return { page, link }
+    return { layout, link }
   })
-  function setQuery(search) {
-    links.forEach(({ page, link }) => link.setAttribute('href', page + search))
+  function setView(view) {
+    links.forEach(({ layout, link }) => {
+      const query = new URLSearchParams({ view })
+      if (layout.panel) query.set('layout', layout.panel)
+      link.setAttribute('href', `${layout.page}?${query}`)
+    })
   }
-  setQuery(location.search)
-  return { element, setQuery }
+  return { element, setView }
 }

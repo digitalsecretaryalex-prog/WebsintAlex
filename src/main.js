@@ -32,6 +32,9 @@ let sequencer = null
 let brain = null
 let djFilterValue = 0
 let shownPart = 0
+const panel = readPanel()
+let selectedLayer = 'kick'
+let inspector = null
 
 function knobDefault(layer, param) {
   if (param === 'filter') return layer.filter.frequency
@@ -198,11 +201,76 @@ function initLayers() {
     )
     channelRow.append(fader.element, mute.element)
 
-    strip.append(launch.element, variations.element, knobRow, channelRow)
+    // В вариантах панели вариации и ручки лежат в одной обёртке,
+    // её можно спрятать, показать поверх или перенести в инспектор
+    let details = null
+    if (panel) {
+      details = document.createElement('div')
+      details.className = 'LayerDetails'
+      details.append(variations.element, knobRow)
+      strip.append(launch.element, details, channelRow)
+      strip.addEventListener('pointerdown', () => selectLayer(layer.id))
+      strip.addEventListener('focusin', () => selectLayer(layer.id))
+    } else {
+      strip.append(launch.element, variations.element, knobRow, channelRow)
+    }
+    if (panel === 'c') {
+      const more = createIconButton(
+        'MoreButton',
+        'more',
+        `${layer.name}: все настройки`,
+        () => {
+          const isOpen = strip.classList.toggle('isOpen')
+          more.element.setAttribute('aria-expanded', String(isOpen))
+        }
+      )
+      more.element.setAttribute('aria-expanded', 'false')
+      channelRow.appendChild(more.element)
+    }
     container.appendChild(strip)
-    layerControls[layer.id] = { launch, variations, knobs, fader, mute }
+    layerControls[layer.id] = {
+      launch,
+      variations,
+      knobs,
+      fader,
+      mute,
+      strip,
+      details
+    }
     updateLayer(layer.id)
   })
+  if (panel === 'b') {
+    inspector = document.createElement('section')
+    inspector.className = 'Inspector'
+    container.appendChild(inspector)
+  }
+  if (panel) {
+    document.body.dataset.panel = panel
+    selectLayer(selectedLayer)
+  }
+}
+
+// Выбранный канал: в A раскрывается, в B его настройки уходят в инспектор
+function selectLayer(id) {
+  const previous = layerControls[selectedLayer]
+  selectedLayer = id
+  layers.forEach((layer) =>
+    layerControls[layer.id].strip.classList.toggle(
+      'isSelected',
+      layer.id === id
+    )
+  )
+  if (panel !== 'b') return
+  if (previous.details.parentElement === inspector) {
+    previous.strip.insertBefore(
+      previous.details,
+      previous.strip.lastElementChild
+    )
+  }
+  const layer = layers.find((item) => item.id === id)
+  inspector.className = `Inspector is-${id}`
+  inspector.setAttribute('aria-label', `${layer.name}: настройки`)
+  inspector.replaceChildren(layerControls[id].details)
 }
 
 function initMaster() {
@@ -264,8 +332,33 @@ const LAYOUTS = [
     page: 'index.html',
     label: 'Раскладка: сеть на весь экран'
   },
+  {
+    id: 'panelA',
+    page: 'index.html',
+    panel: 'a',
+    label: 'Панель A: раскрыт выбранный канал'
+  },
+  {
+    id: 'panelB',
+    page: 'index.html',
+    panel: 'b',
+    label: 'Панель B: общий инспектор'
+  },
+  {
+    id: 'panelC',
+    page: 'index.html',
+    panel: 'c',
+    label: 'Панель C: детали по наведению'
+  },
   { id: 'layoutClassic', page: 'classic.html', label: 'Раскладка: стойка' }
 ]
+
+// Вариант нижней панели (?layout=a|b|c) есть только в основной раскладке
+function readPanel() {
+  const isFull = document.getElementById('screen').dataset.framing === 'full'
+  const value = new URLSearchParams(location.search).get('layout')
+  return isFull && ['a', 'b', 'c'].includes(value) ? value : null
+}
 
 // Режим берётся из адреса (?view=flow), чтобы ссылка открывала тот же вид
 function readView() {
@@ -277,7 +370,6 @@ function saveView(view) {
   const url = new URL(location.href)
   url.searchParams.set('view', view)
   history.replaceState(null, '', url)
-  return url.search
 }
 
 // Three.js грузится отдельно: без сети звук всё равно работает
@@ -290,12 +382,15 @@ function initScreen() {
   import('./visuals.js')
     .then(({ initVisuals }) => {
       brain = initVisuals(screen, readPalette(), reducedMotion, view)
-      const layout =
+      const page =
         screen.dataset.framing === 'full' ? 'layoutBold' : 'layoutClassic'
+      const layout = panel ? `panel${panel.toUpperCase()}` : page
       const layoutSwitch = createLayoutSwitch(LAYOUTS, layout)
+      layoutSwitch.setView(view)
       const viewSwitch = createViewSwitch(VIEWS, view, (next) => {
         brain.setMode(next)
-        layoutSwitch.setQuery(saveView(next))
+        saveView(next)
+        layoutSwitch.setView(next)
       })
       const switches = document.createElement('div')
       switches.className = 'Switches'

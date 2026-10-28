@@ -39,7 +39,14 @@ export const icons = {
   layoutBold:
     '<circle cx="12" cy="8" r="4.5"/><rect x="3" y="15" width="4" height="6" rx="2"/><rect x="10" y="15" width="4" height="6" rx="2"/><rect x="17" y="15" width="4" height="6" rx="2"/>',
   layoutClassic:
-    '<rect x="3" y="3" width="18" height="9" rx="1.5"/><path d="M5 16v5M10 16v5M15 16v5M19 16v5"/>'
+    '<rect x="3" y="3" width="18" height="9" rx="1.5"/><path d="M5 16v5M10 16v5M15 16v5M19 16v5"/>',
+  panelA:
+    '<rect x="2" y="6" width="3" height="14" rx="1.5"/><rect x="7" y="6" width="9" height="14" rx="3"/><rect x="18" y="6" width="3" height="14" rx="1.5"/>',
+  panelB:
+    '<rect x="2" y="5" width="3" height="15" rx="1.5"/><rect x="7" y="5" width="3" height="15" rx="1.5"/><rect x="12" y="5" width="10" height="15" rx="3"/>',
+  panelC:
+    '<rect x="4" y="3" width="16" height="7" rx="2"/><rect x="5" y="13" width="3" height="8" rx="1.5"/><rect x="10.5" y="13" width="3" height="8" rx="1.5"/><rect x="16" y="13" width="3" height="8" rx="1.5"/>',
+  more: '<path d="M6 15l6-6 6 6"/>'
 }
 
 export function createIcon(name) {
