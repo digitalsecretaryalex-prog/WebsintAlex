@@ -35,6 +35,7 @@ let shownPart = 0
 const panel = readPanel()
 let selectedLayer = 'kick'
 let inspector = null
+let panelToggle = null
 
 function knobDefault(layer, param) {
   if (param === 'filter') return layer.filter.frequency
@@ -404,10 +405,32 @@ function initScreen() {
         }
       )
       toggle.element.setAttribute('aria-expanded', 'false')
-      switches.append(toggle.element, viewSwitch.element, layoutSwitch.element)
+      panelToggle = createIconButton(
+        'SwitchesToggle',
+        'panelHide',
+        'Скрыть панель',
+        togglePanel
+      )
+      panelToggle.element.setAttribute('aria-pressed', 'false')
+      switches.append(
+        toggle.element,
+        panelToggle.element,
+        viewSwitch.element,
+        layoutSwitch.element
+      )
       screen.appendChild(switches)
     })
     .catch((error) => console.warn('3D-сеть не загрузилась', error))
+}
+
+// Панель прячется, чтобы смотреть на нейроны; звук не меняется
+function togglePanel() {
+  const isHidden = document.body.classList.toggle('isPanelHidden')
+  panelToggle?.setIcon(
+    isHidden ? 'panelShow' : 'panelHide',
+    isHidden ? 'Показать панель' : 'Скрыть панель'
+  )
+  panelToggle?.element.setAttribute('aria-pressed', String(isHidden))
 }
 
 function onAudioEvent(event) {
@@ -454,6 +477,7 @@ function initKeyboard() {
 
     if (event.code === keys.start) togglePlay()
     else if (event.code === keys.reset) reset()
+    else if (event.code === keys.panel) togglePanel()
     else if (layerIndex !== -1) toggleLayer(layers[layerIndex].id)
     else if (variationIndex !== -1) {
       const id = layers[variationIndex].id
@@ -493,7 +517,8 @@ function updateLoop() {
         levels && Number.isFinite(levels.master)
           ? Math.min(1, Math.max(0, (levels.master + 45) / 35))
           : 0,
-      playing: audio.isPlaying()
+      playing: audio.isPlaying(),
+      panelHidden: document.body.classList.contains('isPanelHidden')
     })
   }
   requestAnimationFrame(updateLoop)

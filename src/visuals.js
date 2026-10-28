@@ -107,7 +107,8 @@ export function initVisuals(container, palette, reducedMotion, mode) {
     space: 0.3,
     master: 0,
     part: 0,
-    playing: false
+    playing: false,
+    panelHidden: false
   }
   const look = {
     alive: [0, 0, 0, 0, 0, 0],

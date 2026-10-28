@@ -51,6 +51,8 @@ export const icons = {
   panelC:
     '<rect x="4" y="3" width="16" height="7" rx="2"/><rect x="5" y="13" width="3" height="8" rx="1.5"/><rect x="10.5" y="13" width="3" height="8" rx="1.5"/><rect x="16" y="13" width="3" height="8" rx="1.5"/>',
   more: '<path d="M6 15l6-6 6 6"/>',
+  panelHide: '<path d="M6 8l6 6 6-6"/><path d="M4 19h16"/>',
+  panelShow: '<path d="M6 14l6-6 6 6"/><path d="M4 19h16"/>',
   variants:
     '<rect x="4" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5"/><circle cx="16.75" cy="16.75" r="3.25"/>'
 }

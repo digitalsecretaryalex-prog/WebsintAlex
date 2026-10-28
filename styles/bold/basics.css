@@ -31,7 +31,8 @@
   --knob-large: clamp(140px, min(15vw, 24vh), 250px);
   --fader: clamp(80px, 13vh, 130px);
   --icon: 20px;
-  --master-width: clamp(210px, 18vw, 300px);
+  /* колонка выхода по ширине кольца: поля слева и справа равны */
+  --master-width: var(--knob-large);
   --blur: 18px;
   --glow: 0 0 28px;
   --ease: cubic-bezier(0.23, 1, 0.32, 1);
@@ -119,6 +120,36 @@ button {
   position: relative;
   z-index: 2;
   pointer-events: auto;
+}
+
+/* Панель скрыта: растр и капсулы уходят вниз и гаснут */
+.Raster,
+.Layers {
+  transition:
+    opacity 320ms var(--ease),
+    transform 320ms var(--ease);
+}
+
+body.isPanelHidden .Raster,
+body.isPanelHidden .Layers {
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(32px);
+  pointer-events: none;
+  transition:
+    opacity 320ms var(--ease),
+    transform 320ms var(--ease),
+    visibility 0s linear 320ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .Raster,
+  .Layers,
+  body.isPanelHidden .Raster,
+  body.isPanelHidden .Layers {
+    transition: none;
+    transform: none;
+  }
 }
 
 .WithIcon {

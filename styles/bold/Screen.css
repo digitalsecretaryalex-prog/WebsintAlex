@@ -25,7 +25,7 @@
   inset: 0;
   pointer-events: none;
   background: radial-gradient(
-    120% 90% at 45% 40%,
+    120% 90% at 50% 45%,
     transparent 45%,
     rgba(3, 6, 13, 0.85) 100%
   );
