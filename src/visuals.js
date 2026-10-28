@@ -6,12 +6,24 @@ import { createNetwork } from './views/network.js'
 import { createFlow } from './views/flow.js'
 import { createStorm } from './views/storm.js'
 import { createInk } from './views/ink.js'
+import {
+  createMultipolar,
+  createPyramidal,
+  createPurkinje
+} from './views/cells.js'
+import { createSynapse } from './views/synapse.js'
+import { createAxon } from './views/axon.js'
 
 const CREATE = {
   network: createNetwork,
   flow: createFlow,
   storm: createStorm,
-  ink: createInk
+  ink: createInk,
+  multipolar: createMultipolar,
+  pyramidal: createPyramidal,
+  purkinje: createPurkinje,
+  synapse: createSynapse,
+  axon: createAxon
 }
 export const VIEW_NAMES = Object.keys(CREATE)
 

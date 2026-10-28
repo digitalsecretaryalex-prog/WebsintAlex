@@ -45,6 +45,8 @@ export function createSpikeUniforms() {
     },
     uSpikeAge: { value: new Array(MAX_SPIKES).fill(-1) },
     uSpikeStrength: { value: new Array(MAX_SPIKES).fill(0) },
+    uSpikeSide: { value: new Array(MAX_SPIKES).fill(0) },
+    uSpikeSeed: { value: new Array(MAX_SPIKES).fill(0) },
     uSpeed: { value: 1 },
     uDecay: { value: 0.8 },
     uWidth: { value: 0.12 }
@@ -65,6 +67,11 @@ export function writeSpikeUniforms(uniforms, model, origin, colors) {
     uniforms.uSpikeColor.value[i].set(color.r, color.g, color.b)
     uniforms.uSpikeAge.value[i] = now - spike.born
     uniforms.uSpikeStrength.value[i] = spike.strength
+    // side: от тела клетки или к нему, seed: какие ветки зажжёт спайк
+    if (uniforms.uSpikeSide) {
+      uniforms.uSpikeSide.value[i] = spike.side
+      uniforms.uSpikeSeed.value[i] = (spike.born * 7.31) % 1
+    }
   }
 }
 
