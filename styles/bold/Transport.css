@@ -10,6 +10,15 @@
   gap: calc(var(--gap) * 2);
 }
 
+/* пустое место транспорта не перехватывает клики: под ним кнопки вариантов */
+.Instrument > .Transport {
+  pointer-events: none;
+}
+
+.Transport > * {
+  pointer-events: auto;
+}
+
 .Transport .WithIcon {
   flex-direction: row;
   margin-top: 18px;

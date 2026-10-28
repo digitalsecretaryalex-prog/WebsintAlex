@@ -417,18 +417,25 @@ export function createIconButton(className, icon, label, onClick) {
   return { element, setIcon }
 }
 
-// Переключатель режимов визуализации: круглые кнопки со значками
-export function createViewSwitch(views, current, onSelect) {
+// Переключатель режимов: круглые кнопки со значками, выбрана одна.
+// Им же выбирается фон
+export function createViewSwitch(
+  views,
+  current,
+  onSelect,
+  name = 'Вид нейронов'
+) {
   const element = document.createElement('div')
   element.className = 'ViewSwitch'
   element.setAttribute('role', 'group')
-  element.setAttribute('aria-label', 'Вид нейронов')
-  const buttons = views.map(({ id, label }) => {
+  element.setAttribute('aria-label', name)
+  const buttons = views.map(({ id, icon, label }) => {
     const button = document.createElement('button')
     button.type = 'button'
     button.className = 'ViewButton'
     button.setAttribute('aria-label', label)
-    button.appendChild(createIcon(id))
+    button.title = label
+    button.appendChild(createIcon(icon || id))
     button.addEventListener('click', () => {
       setState(id)
       onSelect(id)
@@ -455,6 +462,7 @@ export function createLayoutSwitch(layouts, current) {
     const link = document.createElement('a')
     link.className = 'ViewButton'
     link.setAttribute('aria-label', layout.label)
+    link.title = layout.label
     if (layout.id === current) {
       link.classList.add('isOn')
       link.setAttribute('aria-current', 'page')
@@ -463,12 +471,48 @@ export function createLayoutSwitch(layouts, current) {
     element.appendChild(link)
     return { layout, link }
   })
-  function setView(view) {
+  // ссылки несут вид, фон и включённые идеи из адреса страницы
+  function refresh() {
     links.forEach(({ layout, link }) => {
-      const query = new URLSearchParams({ view })
+      const query = new URLSearchParams(location.search)
       if (layout.panel) query.set('layout', layout.panel)
+      else query.delete('layout')
       link.setAttribute('href', `${layout.page}?${query}`)
     })
   }
-  return { element, setView }
+  refresh()
+  return { element, refresh }
+}
+
+// Идеи: кнопки-переключатели, включать можно несколько сразу
+export function createIdeaSwitch(ideas, onToggle) {
+  const element = document.createElement('div')
+  element.className = 'ViewSwitch'
+  element.setAttribute('role', 'group')
+  element.setAttribute('aria-label', 'Идеи')
+  const buttons = {}
+  ideas.forEach(({ id, label }) => {
+    const button = document.createElement('button')
+    button.type = 'button'
+    button.className = 'ViewButton IdeaButton'
+    button.dataset.idea = id
+    button.setAttribute('aria-label', label)
+    button.setAttribute('aria-pressed', 'false')
+    button.title = label
+    button.appendChild(createIcon(id))
+    button.addEventListener('click', () =>
+      onToggle(id, button.getAttribute('aria-pressed') !== 'true')
+    )
+    element.appendChild(button)
+    buttons[id] = button
+  })
+  function setState(id, isOn) {
+    buttons[id].setAttribute('aria-pressed', String(isOn))
+    buttons[id].classList.toggle('isOn', isOn)
+  }
+  // прогресс партитуры: кольцо по краю кнопки
+  function setProgress(id, value) {
+    buttons[id].style.setProperty('--progress', value.toFixed(3))
+  }
+  return { element, setState, setProgress, buttons }
 }

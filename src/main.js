@@ -22,6 +22,7 @@ import {
   createLayoutSwitch
 } from './controls.js'
 import { createIcon } from './icons.js'
+import { initIdeas } from './ideas.js'
 
 const RASTER_ROWS = ['kick', 'perc']
 const layerControls = {}
@@ -36,6 +37,7 @@ const panel = readPanel()
 let selectedLayer = 'kick'
 let inspector = null
 let panelToggle = null
+let ideas = null
 
 function knobDefault(layer, param) {
   if (param === 'filter') return layer.filter.frequency
@@ -71,19 +73,30 @@ function toggleLayer(id) {
   })
 }
 
+// apply*: звук уже запущен, вызываются сразу (их же зовёт партитура)
+function applyVariation(id, variation) {
+  audio.setVariation(id, variation)
+  updateLayer(id)
+}
+
+function applyPart(index) {
+  audio.selectPart(index)
+  transport.parts.setState(audio.getCurrentPart(), index)
+  layers.forEach((layer) => updateLayer(layer.id))
+}
+
+function turnOff(id) {
+  if (!audio.getLayerState(id).wantOn) return
+  audio.toggleLayer(id)
+  updateLayer(id)
+}
+
 function setVariation(id, variation) {
-  act(() => {
-    audio.setVariation(id, variation)
-    updateLayer(id)
-  })
+  act(() => applyVariation(id, variation))
 }
 
 function selectPart(index) {
-  act(() => {
-    audio.selectPart(index)
-    transport.parts.setState(audio.getCurrentPart(), index)
-    layers.forEach((layer) => updateLayer(layer.id))
-  })
+  act(() => applyPart(index))
 }
 
 async function togglePlay() {
@@ -316,6 +329,9 @@ function readPalette() {
     signal: read('--color-signal'),
     quiet: read('--color-quiet'),
     ice: read('--color-ice'),
+    hair: read('--color-hair'),
+    text: read('--color-text'),
+    textDim: read('--color-text-dim'),
     layers: layers.map((layer) => read(`--color-${layer.id}`))
   }
 }
@@ -368,9 +384,23 @@ function readView() {
   return VIEWS.some(({ id }) => id === view) ? view : 'network'
 }
 
-function saveView(view) {
+const BACKGROUND_LIST = [
+  { id: 'dust', label: 'Фон: пыль' },
+  {
+    id: 'calcium',
+    label: 'Фон: кальциевая съёмка, клетки вспыхивают и гаснут'
+  },
+  { id: 'tracts', label: 'Фон: волокна белого вещества, по ним бегут волны' }
+]
+
+function readBackground() {
+  const ground = new URLSearchParams(location.search).get('bg')
+  return BACKGROUND_LIST.some(({ id }) => id === ground) ? ground : 'dust'
+}
+
+function saveParam(name, value) {
   const url = new URL(location.href)
-  url.searchParams.set('view', view)
+  url.searchParams.set(name, value)
   history.replaceState(null, '', url)
 }
 
@@ -383,14 +413,37 @@ function initScreen() {
   const view = readView()
   import('./visuals.js')
     .then(({ initVisuals }) => {
-      brain = initVisuals(screen, readPalette(), reducedMotion, view)
+      const palette = readPalette()
+      const ground = readBackground()
+      brain = initVisuals(screen, palette, reducedMotion, view, ground)
       const layout = panel ? `panel${panel.toUpperCase()}` : 'layoutBold'
       const layoutSwitch = createLayoutSwitch(LAYOUTS, layout)
-      layoutSwitch.setView(view)
       const viewSwitch = createViewSwitch(VIEWS, view, (next) => {
         brain.setMode(next)
-        saveView(next)
-        layoutSwitch.setView(next)
+        saveParam('view', next)
+        layoutSwitch.refresh()
+      })
+      const groundSwitch = createViewSwitch(
+        BACKGROUND_LIST,
+        ground,
+        (next) => {
+          brain.setBackground(next)
+          saveParam('bg', next)
+          layoutSwitch.refresh()
+        },
+        'Фон'
+      )
+      ideas = initIdeas({
+        screen,
+        instrument: document.querySelector('.Instrument'),
+        palette,
+        actions: {
+          selectPart: applyPart,
+          setVariation: applyVariation,
+          turnOff,
+          togglePlay
+        },
+        onSave: () => layoutSwitch.refresh()
       })
       // варианты спрятаны за одной кнопкой: на экране остаётся минимум
       const switches = document.createElement('div')
@@ -416,9 +469,12 @@ function initScreen() {
         toggle.element,
         panelToggle.element,
         viewSwitch.element,
-        layoutSwitch.element
+        layoutSwitch.element,
+        groundSwitch.element,
+        ideas.element
       )
-      screen.appendChild(switches)
+      // поверх интерфейса: раскрытые ряды не уходят под капсулы
+      document.body.appendChild(switches)
     })
     .catch((error) => console.warn('3D-сеть не загрузилась', error))
 }
@@ -434,7 +490,10 @@ function togglePanel() {
 }
 
 function onAudioEvent(event) {
-  if (event.type === 'step') sequencer.setStep(event.step)
+  if (event.type === 'step') {
+    sequencer.setStep(event.step)
+    ideas?.onStep(event.step)
+  }
   if (event.type === 'note' && brain) {
     brain.pulse(layers.findIndex((layer) => layer.id === event.layer))
   }
@@ -488,7 +547,15 @@ function initKeyboard() {
   })
 }
 
-function updateLoop() {
+// уровень в дБ → 0..1 для визуала
+function toUnit(db) {
+  return Number.isFinite(db) ? Math.min(1, Math.max(0, (db + 45) / 35)) : 0
+}
+
+let lastFrame = performance.now()
+function updateLoop(now) {
+  const dt = Math.min(0.1, (now - lastFrame) / 1000) || 0
+  lastFrame = now
   updateStates()
   const levels = audio.getLevels()
   if (levels) {
@@ -499,26 +566,24 @@ function updateLoop() {
   }
   if (brain) {
     const spaces = Object.values(spaceValues)
+    const playing = audio.isPlaying()
+    const on = layers.map(
+      (layer) => audio.getLayerState(layer.id).isOn && playing
+    )
+    const master = toUnit(levels?.master)
+    const part = audio.getCurrentPart()
+    const extra = ideas?.update(dt, { playing, part, level: master, on })
     brain.setState({
-      on: layers.map(
-        (layer) => audio.getLayerState(layer.id).isOn && audio.isPlaying()
-      ),
-      level: layers.map((layer) => {
-        const db = levels ? levels[layer.id] : -Infinity
-        return Number.isFinite(db)
-          ? Math.min(1, Math.max(0, (db + 45) / 35))
-          : 0
-      }),
-      bpm: audio.isPlaying() ? audio.getTempo() : 84,
+      on,
+      level: layers.map((layer) => toUnit(levels?.[layer.id])),
+      bpm: playing ? audio.getTempo() : 84,
       djFilter: djFilterValue,
       space: spaces.reduce((sum, value) => sum + value, 0) / spaces.length,
-      part: audio.getCurrentPart(),
-      master:
-        levels && Number.isFinite(levels.master)
-          ? Math.min(1, Math.max(0, (levels.master + 45) / 35))
-          : 0,
-      playing: audio.isPlaying(),
-      panelHidden: document.body.classList.contains('isPanelHidden')
+      part,
+      master,
+      playing,
+      panelHidden: document.body.classList.contains('isPanelHidden'),
+      ...extra
     })
   }
   requestAnimationFrame(updateLoop)

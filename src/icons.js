@@ -53,6 +53,23 @@ export const icons = {
   more: '<path d="M6 15l6-6 6 6"/>',
   panelHide: '<path d="M6 8l6 6 6-6"/><path d="M4 19h16"/>',
   panelShow: '<path d="M6 14l6-6 6 6"/><path d="M4 19h16"/>',
+  // фоны
+  dust: '<circle cx="6" cy="7" r="1"/><circle cx="14" cy="5" r="1"/><circle cx="19" cy="11" r="1"/><circle cx="9" cy="14" r="1"/><circle cx="16" cy="18" r="1"/><circle cx="5" cy="19" r="1"/>',
+  calcium:
+    '<circle cx="7" cy="8" r="3.5"/><circle cx="17" cy="7" r="2.5"/><circle cx="14" cy="17" r="3.5"/><circle cx="14" cy="17" r="0.8"/>',
+  tracts:
+    '<path d="M3 17c4-9 10-11 18-9"/><path d="M3 12c5-4 11-4 18 1"/><path d="M5 21c3-4 9-6 15-3"/>',
+
+  // идеи
+  breath:
+    '<circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="7.5" stroke-dasharray="2 3"/>',
+  prune:
+    '<circle cx="5" cy="12" r="2"/><circle cx="19" cy="6" r="2"/><circle cx="19" cy="18" r="2"/><path d="M7 11l10-4"/><path d="M7 13l3 1.4M14 16l3 1"/>',
+  score:
+    '<path d="M3 7h18M3 12h18M3 17h18"/><circle cx="8" cy="12" r="2.2"/><circle cx="15" cy="17" r="2.2"/>',
+  record: '<circle cx="12" cy="12" r="5.5"/>',
+  trace: '<path d="M3 6h5v4h4v5h3v-3h6"/><path d="M3 20h18"/>',
+  save: '<path d="M12 4v11M7 10l5 5 5-5"/><path d="M5 20h14"/>',
   variants:
     '<rect x="4" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5"/><circle cx="16.75" cy="16.75" r="3.25"/>'
 }

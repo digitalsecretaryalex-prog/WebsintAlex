@@ -32,10 +32,10 @@
 }
 
 .Switches {
-  position: absolute;
+  position: fixed;
   left: var(--padding);
   top: calc(var(--padding) + var(--play) + 20px);
-  z-index: 1;
+  z-index: 3;
   display: flex;
   flex-direction: column;
   gap: 8px;
