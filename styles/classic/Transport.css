@@ -40,6 +40,11 @@
   gap: var(--gap);
 }
 
+.PartsLine,
+.PartsPuck {
+  display: none;
+}
+
 .PartButton {
   display: grid;
   place-items: center;

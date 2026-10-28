@@ -324,6 +324,23 @@ export function createPartButtons(parts, onSelect) {
     [1, 5]
   ]
 
+  // Линия через центры кругов: тусклая целиком, яркая до активной части
+  const svgNS = 'http://www.w3.org/2000/svg'
+  const line = document.createElementNS(svgNS, 'svg')
+  line.setAttribute('class', 'PartsLine')
+  line.setAttribute('aria-hidden', 'true')
+  const track = document.createElementNS(svgNS, 'polyline')
+  track.setAttribute('class', 'PartsTrack')
+  const trail = document.createElementNS(svgNS, 'polyline')
+  trail.setAttribute('class', 'PartsTrail')
+  line.append(track, trail)
+
+  // Шайба: заливка активной части, едет по линии к выбранному кругу
+  const puck = document.createElement('span')
+  puck.className = 'PartsPuck'
+  puck.setAttribute('aria-hidden', 'true')
+  element.append(line, puck)
+
   const buttons = parts.map((part, index) => {
     const button = document.createElement('button')
     button.type = 'button'
@@ -338,12 +355,54 @@ export function createPartButtons(parts, onSelect) {
     return button
   })
 
+  let centers = []
+  let shown = 0
+  let length = 0
+
+  // offsetLeft и offsetTop не зависят от transform: scale не сбивает центры
+  function measure() {
+    centers = buttons.map((button) => [
+      button.offsetLeft + button.offsetWidth / 2,
+      button.offsetTop + button.offsetHeight / 2
+    ])
+    const points = centers.map(([x, y]) => `${x},${y}`).join(' ')
+    track.setAttribute('points', points)
+    trail.setAttribute('points', points)
+    length = centers.reduce((sum, [x, y], index) => {
+      if (index === 0) return 0
+      const [px, py] = centers[index - 1]
+      return sum + Math.hypot(x - px, y - py)
+    }, 0)
+    trail.style.strokeDasharray = `${length} ${length}`
+    move(shown)
+    // переезд анимируется только после первой расстановки
+    requestAnimationFrame(() => element.classList.add('isReady'))
+  }
+
+  function move(index) {
+    if (!centers.length) return
+    const [x, y] = centers[index]
+    puck.style.transform = `translate(${x}px, ${y}px) translate(-50%, -50%)`
+    let travelled = 0
+    for (let i = 1; i <= index; i++) {
+      const [px, py] = centers[i - 1]
+      travelled += Math.hypot(centers[i][0] - px, centers[i][1] - py)
+    }
+    trail.style.strokeDashoffset = `${length - travelled}`
+  }
+
+  new ResizeObserver(measure).observe(element)
+
   function setState(current, want) {
     buttons.forEach((button, index) => {
       button.setAttribute('aria-pressed', String(index === want))
       button.classList.toggle('isOn', index === current)
       button.classList.toggle('isPending', index === want && index !== current)
     })
+    if (current !== shown) {
+      shown = current
+      move(current)
+    }
   }
   return { element, setState }
 }
@@ -356,4 +415,57 @@ export function createIconButton(className, icon, label, onClick) {
     element.setAttribute('aria-label', nextLabel)
   }
   return { element, setIcon }
+}
+
+// Переключатель режимов визуализации: круглые кнопки со значками
+export function createViewSwitch(views, current, onSelect) {
+  const element = document.createElement('div')
+  element.className = 'ViewSwitch'
+  element.setAttribute('role', 'group')
+  element.setAttribute('aria-label', 'Вид нейронов')
+  const buttons = views.map(({ id, label }) => {
+    const button = document.createElement('button')
+    button.type = 'button'
+    button.className = 'ViewButton'
+    button.setAttribute('aria-label', label)
+    button.appendChild(createIcon(id))
+    button.addEventListener('click', () => {
+      setState(id)
+      onSelect(id)
+    })
+    element.appendChild(button)
+    return { id, button }
+  })
+  function setState(active) {
+    buttons.forEach(({ id, button }) => {
+      button.setAttribute('aria-pressed', String(id === active))
+      button.classList.toggle('isOn', id === active)
+    })
+  }
+  setState(current)
+  return { element, setState }
+}
+
+// Переключатель раскладок: ссылки на страницы, адрес хранит выбранный вид
+export function createLayoutSwitch(layouts, current) {
+  const element = document.createElement('nav')
+  element.className = 'LayoutSwitch'
+  element.setAttribute('aria-label', 'Раскладка')
+  const links = layouts.map(({ id, page, label }) => {
+    const link = document.createElement('a')
+    link.className = 'ViewButton'
+    link.setAttribute('aria-label', label)
+    if (id === current) {
+      link.classList.add('isOn')
+      link.setAttribute('aria-current', 'page')
+    }
+    link.appendChild(createIcon(id))
+    element.appendChild(link)
+    return { page, link }
+  })
+  function setQuery(search) {
+    links.forEach(({ page, link }) => link.setAttribute('href', page + search))
+  }
+  setQuery(location.search)
+  return { element, setQuery }
 }

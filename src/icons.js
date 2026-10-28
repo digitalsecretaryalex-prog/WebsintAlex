@@ -25,7 +25,21 @@ export const icons = {
   // транспорт
   play: '<path d="M7 4l13 8-13 8z" fill="currentColor"/>',
   stop: '<rect x="6" y="6" width="12" height="12" rx="1.5" fill="currentColor"/>',
-  reset: '<path d="M5 12a7 7 0 1 0 2.2-5.1"/><path d="M5 4v4h4"/>'
+  reset: '<path d="M5 12a7 7 0 1 0 2.2-5.1"/><path d="M5 4v4h4"/>',
+
+  // режимы визуализации
+  network:
+    '<circle cx="6" cy="7" r="2"/><circle cx="18" cy="6" r="2"/><circle cx="12" cy="17" r="2"/><path d="M8 7.5l8-1M7 9l4 6.5M17 8l-4 7.5"/>',
+  flow: '<path d="M2 9c3-3 5-3 8 0s5 3 8 0 3-2 4-1M2 16c3-3 5-3 8 0s5 3 8 0 3-2 4-1"/>',
+  storm:
+    '<g fill="currentColor" stroke="none"><circle cx="12" cy="12" r="2.4"/><circle cx="7" cy="9" r="1.3"/><circle cx="17" cy="9.5" r="1.3"/><circle cx="9" cy="17" r="1.3"/><circle cx="16" cy="16" r="1.3"/><circle cx="12" cy="5" r="1"/><circle cx="4.5" cy="14" r="1"/><circle cx="19.5" cy="14" r="1"/></g>',
+  ink: '<path d="M4 15c2-9 14-11 16-4s-10 9-12 3 6-9 9-6"/>',
+
+  // раскладки
+  layoutBold:
+    '<circle cx="12" cy="8" r="4.5"/><rect x="3" y="15" width="4" height="6" rx="2"/><rect x="10" y="15" width="4" height="6" rx="2"/><rect x="17" y="15" width="4" height="6" rx="2"/>',
+  layoutClassic:
+    '<rect x="3" y="3" width="18" height="9" rx="1.5"/><path d="M5 16v5M10 16v5M15 16v5M19 16v5"/>'
 }
 
 export function createIcon(name) {
@@ -38,10 +52,12 @@ export function createIcon(name) {
 
 // Значок части сета: волна, чем дальше часть, тем реже и спокойнее
 export function createWaveIcon(cycles, height) {
+  // отступ 3 по краям: скруглённые концы линии не обрезаются viewBox
   let path = ''
-  for (let x = 0; x <= 60; x += 2) {
-    const y = 12 + Math.sin((x / 60) * Math.PI * 2 * cycles) * height
-    path += `${x === 0 ? 'M' : 'L'}${x} ${y.toFixed(1)}`
+  for (let step = 0; step <= 30; step++) {
+    const x = 3 + step * 1.8
+    const y = 12 + Math.sin((step / 30) * Math.PI * 2 * cycles) * height
+    path += `${step === 0 ? 'M' : 'L'}${x.toFixed(1)} ${y.toFixed(1)}`
   }
   const element = document.createElement('span')
   element.className = 'Icon isWide'
