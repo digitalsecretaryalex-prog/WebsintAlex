@@ -43,8 +43,34 @@
 
 .ViewSwitch,
 .LayoutSwitch {
-  display: flex;
+  display: none;
+  flex-wrap: wrap;
   gap: 8px;
+}
+
+.ViewSwitch {
+  max-width: calc(5 * 44px + 4 * 8px);
+}
+
+.Switches.isOpen .ViewSwitch,
+.Switches.isOpen .LayoutSwitch {
+  display: flex;
+}
+
+.SwitchesToggle {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: var(--hair) solid var(--color-hair);
+  background-color: rgba(3, 6, 13, 0.55);
+  color: var(--color-ice);
+}
+
+.SwitchesToggle[aria-expanded='true'] {
+  border-color: var(--color-signal);
+  color: var(--color-signal);
 }
 
 .ViewButton {

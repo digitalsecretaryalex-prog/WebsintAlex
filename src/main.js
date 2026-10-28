@@ -321,17 +321,18 @@ function readPalette() {
 
 const VIEWS = [
   { id: 'network', label: 'Вид: сеть' },
+  { id: 'multipolar', label: 'Вид: мультиполярный нейрон' },
+  { id: 'pyramidal', label: 'Вид: пирамидный нейрон коры' },
+  { id: 'purkinje', label: 'Вид: клетка Пуркинье' },
+  { id: 'synapse', label: 'Вид: синапс' },
+  { id: 'axon', label: 'Вид: миелиновый аксон' },
   { id: 'flow', label: 'Вид: волна по коре' },
   { id: 'storm', label: 'Вид: ядро' },
   { id: 'ink', label: 'Вид: ленты-аксоны' }
 ]
 
 const LAYOUTS = [
-  {
-    id: 'layoutBold',
-    page: 'index.html',
-    label: 'Раскладка: сеть на весь экран'
-  },
+  { id: 'layoutBold', page: 'index.html', label: 'Панель: исходная' },
   {
     id: 'panelA',
     page: 'index.html',
@@ -349,15 +350,13 @@ const LAYOUTS = [
     page: 'index.html',
     panel: 'c',
     label: 'Панель C: детали по наведению'
-  },
-  { id: 'layoutClassic', page: 'classic.html', label: 'Раскладка: стойка' }
+  }
 ]
 
-// Вариант нижней панели (?layout=a|b|c) есть только в основной раскладке
+// Вариант нижней панели: ?layout=a|b|c, без параметра исходная
 function readPanel() {
-  const isFull = document.getElementById('screen').dataset.framing === 'full'
   const value = new URLSearchParams(location.search).get('layout')
-  return isFull && ['a', 'b', 'c'].includes(value) ? value : null
+  return ['a', 'b', 'c'].includes(value) ? value : null
 }
 
 // Режим берётся из адреса (?view=flow), чтобы ссылка открывала тот же вид
@@ -382,9 +381,7 @@ function initScreen() {
   import('./visuals.js')
     .then(({ initVisuals }) => {
       brain = initVisuals(screen, readPalette(), reducedMotion, view)
-      const page =
-        screen.dataset.framing === 'full' ? 'layoutBold' : 'layoutClassic'
-      const layout = panel ? `panel${panel.toUpperCase()}` : page
+      const layout = panel ? `panel${panel.toUpperCase()}` : 'layoutBold'
       const layoutSwitch = createLayoutSwitch(LAYOUTS, layout)
       layoutSwitch.setView(view)
       const viewSwitch = createViewSwitch(VIEWS, view, (next) => {
@@ -392,9 +389,20 @@ function initScreen() {
         saveView(next)
         layoutSwitch.setView(next)
       })
+      // варианты спрятаны за одной кнопкой: на экране остаётся минимум
       const switches = document.createElement('div')
       switches.className = 'Switches'
-      switches.append(viewSwitch.element, layoutSwitch.element)
+      const toggle = createIconButton(
+        'SwitchesToggle',
+        'variants',
+        'Варианты',
+        () => {
+          const isOpen = switches.classList.toggle('isOpen')
+          toggle.element.setAttribute('aria-expanded', String(isOpen))
+        }
+      )
+      toggle.element.setAttribute('aria-expanded', 'false')
+      switches.append(toggle.element, viewSwitch.element, layoutSwitch.element)
       screen.appendChild(switches)
     })
     .catch((error) => console.warn('3D-сеть не загрузилась', error))

@@ -3,6 +3,7 @@
   --part-off: 0.86;
   --part-move: 600ms;
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  position: relative;
   grid-area: transport;
   display: flex;
   align-items: flex-start;
@@ -37,7 +38,7 @@
   flex: 1;
   justify-content: space-between;
   height: calc(var(--button) + 72px);
-  padding-right: 8px;
+  padding-right: 84px;
 }
 
 .PartsLine {
@@ -134,12 +135,14 @@
 }
 
 .ResetButton {
+  position: absolute;
+  top: 4px;
+  /* центр сброса на одной оси с кольцом DJ-фильтра */
+  right: calc(var(--master-width) / 2 - 22px);
   display: grid;
   place-items: center;
   width: 44px;
   height: 44px;
-  margin: 4px 4px 0 0;
-  flex: none;
   border-radius: 50%;
   border: var(--hair) solid var(--color-hair);
   color: var(--color-ice);
