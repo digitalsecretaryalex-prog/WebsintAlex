@@ -3,27 +3,19 @@
 import * as THREE from 'three'
 import { createSpikes } from './views/spikes.js'
 import { createNetwork } from './views/network.js'
-import { createFlow } from './views/flow.js'
-import { createStorm } from './views/storm.js'
-import { createInk } from './views/ink.js'
 import {
-  createMultipolar,
-  createPyramidal,
-  createPurkinje
-} from './views/cells.js'
-import { createSynapse } from './views/synapse.js'
-import { createAxon } from './views/axon.js'
+  createFlight,
+  createStream,
+  createField,
+  createCascade
+} from './views/swarm.js'
 
 const CREATE = {
   network: createNetwork,
-  flow: createFlow,
-  storm: createStorm,
-  ink: createInk,
-  multipolar: createMultipolar,
-  pyramidal: createPyramidal,
-  purkinje: createPurkinje,
-  synapse: createSynapse,
-  axon: createAxon
+  flight: createFlight,
+  stream: createStream,
+  field: createField,
+  cascade: createCascade
 }
 export const VIEW_NAMES = Object.keys(CREATE)
 
@@ -51,14 +43,7 @@ export function frameCamera(camera, width, height, isFull, halfX, halfY) {
     : Math.max(halfX / (0.7 * halfWidth), halfY / (0.88 * halfHeight))
   camera.position.setLength(distance)
   if (isFull) {
-    camera.setViewOffset(
-      width,
-      height,
-      width * 0.08,
-      height * 0.13,
-      width,
-      height
-    )
+    camera.setViewOffset(width, height, 0, height * 0.13, width, height)
   } else {
     camera.clearViewOffset()
   }
