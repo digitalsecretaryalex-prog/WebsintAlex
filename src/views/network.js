@@ -1,6 +1,7 @@
-// 3D-визуализация на Three.js. Читает состояние музыки, звук не создаёт.
+// Режим «Сеть»: 520 нейронов в двух полушариях, импульсы бегут по связям.
 import * as THREE from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
+import { frameCamera } from '../visuals.js'
 
 const NEURONS = 520
 const NEIGHBOURS = 3
@@ -112,7 +113,7 @@ function lerp(from, to, amount) {
   return from + (to - from) * amount
 }
 
-export function initBrain(container, palette, reducedMotion) {
+export function createNetwork({ renderer, colors, reducedMotion }) {
   const rand = random(7)
   const neurons = createNeurons(rand)
   const edges = createEdges(neurons, rand)
@@ -120,16 +121,12 @@ export function initBrain(container, palette, reducedMotion) {
     edges.filter((edge) => neurons[edge.a].region === region)
   )
 
-  const screenColor = new THREE.Color(palette.screen)
-  const signalColor = new THREE.Color(palette.signal)
-  const quietColor = new THREE.Color(palette.quiet)
+  const screenColor = colors.screen
+  const signalColor = colors.signal
+  const quietColor = colors.quiet
   const baseColor = new THREE.Color()
-  const iceColor = new THREE.Color(palette.ice)
-  const layerColors = palette.layers.map((hex) => new THREE.Color(hex))
-
-  const renderer = new THREE.WebGLRenderer({ antialias: true })
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
-  container.appendChild(renderer.domElement)
+  const iceColor = colors.ice
+  const layerColors = colors.layers
 
   const scene = new THREE.Scene()
   scene.background = screenColor
@@ -212,15 +209,7 @@ export function initBrain(container, palette, reducedMotion) {
   scene.add(new THREE.Points(impulseGeometry, impulseMaterial))
   const impulses = []
 
-  // target: состояние музыки, look: сглаженное состояние на экране
-  const target = {
-    on: [false, false, false, false, false, false],
-    level: [0, 0, 0, 0, 0, 0],
-    bpm: 84,
-    djFilter: 0,
-    space: 0.3,
-    part: 0
-  }
+  let target = null
   const look = {
     region: [0, 0, 0, 0, 0, 0],
     saturation: 1,
@@ -230,12 +219,8 @@ export function initBrain(container, palette, reducedMotion) {
   }
   let wave = null
 
-  function setState(next) {
-    Object.assign(target, next)
-  }
-
   function pulse(layerIndex) {
-    if (reducedMotion) return
+    if (reducedMotion || !target) return
     if (layerIndex === 0) wave = { radius: 0 }
     const pool = regionEdges[layerIndex]
     const count = PART_LOOK[target.part].impulses
@@ -245,41 +230,16 @@ export function initBrain(container, palette, reducedMotion) {
     }
   }
 
-  function resize() {
-    const { clientWidth, clientHeight } = container
-    if (!clientWidth || !clientHeight) return
-    renderer.setSize(clientWidth, clientHeight, false)
-    camera.aspect = clientWidth / clientHeight
-    camera.updateProjectionMatrix()
-    const halfHeight = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2))
-    const halfWidth = halfHeight * camera.aspect
-    // data-framing="full": сеть на весь экран, кадр сдвинут от контролов
-    const isFull = container.dataset.framing === 'full'
-    const distance = isFull
-      ? Math.max(1.3 / (0.5 * halfWidth), 0.8 / (0.4 * halfHeight))
-      : Math.max(1.3 / (0.7 * halfWidth), 0.8 / (0.88 * halfHeight))
-    camera.position.setLength(distance)
-    if (isFull) {
-      camera.setViewOffset(
-        clientWidth,
-        clientHeight,
-        clientWidth * 0.08,
-        clientHeight * 0.13,
-        clientWidth,
-        clientHeight
-      )
-    }
+  function resize(width, height, isFull) {
+    const distance = frameCamera(camera, width, height, isFull, 1.3, 0.8)
     controls.maxDistance = distance * 2
   }
-  new ResizeObserver(resize).observe(container)
-  resize()
 
   const color = new THREE.Color()
-  let lastTime = performance.now()
-
-  function frame(now) {
-    const dt = Math.min(0.1, (now - lastTime) / 1000)
-    lastTime = now
+  function update(frame) {
+    const { dt } = frame
+    const now = frame.time * 1000
+    target = frame.target
     const ease = 1 - Math.exp(-dt * 2.5)
     const partLook = PART_LOOK[target.part]
 
@@ -351,10 +311,14 @@ export function initBrain(container, palette, reducedMotion) {
 
     controls.autoRotateSpeed = 0.35 * (target.bpm / 84)
     controls.update()
-    renderer.render(scene, camera)
-    requestAnimationFrame(frame)
   }
-  requestAnimationFrame(frame)
 
-  return { setState, pulse }
+  return {
+    scene,
+    camera,
+    update,
+    resize,
+    pulse,
+    dispose: () => controls.dispose()
+  }
 }

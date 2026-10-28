@@ -30,3 +30,54 @@
     rgba(3, 6, 13, 0.85) 100%
   );
 }
+
+.Switches {
+  position: absolute;
+  left: var(--padding);
+  top: calc(var(--padding) + var(--play) + 20px);
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ViewSwitch,
+.LayoutSwitch {
+  display: flex;
+  gap: 8px;
+}
+
+.ViewButton {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: var(--hair) solid var(--color-hair);
+  background-color: rgba(3, 6, 13, 0.55);
+  color: var(--color-ice);
+  transition:
+    background-color 200ms linear,
+    transform 160ms var(--ease);
+}
+
+.ViewButton .Icon {
+  --icon: 20px;
+}
+
+.ViewButton.isOn {
+  border-color: var(--color-signal);
+  background-color: var(--color-signal);
+  color: var(--color-on-fill);
+  box-shadow: var(--glow) rgba(90, 132, 212, 0.5);
+}
+
+.ViewButton:active {
+  transform: scale(0.94);
+}
+
+@media (hover: hover) {
+  .ViewButton:not(.isOn):hover {
+    background-color: rgba(172, 198, 236, 0.12);
+  }
+}

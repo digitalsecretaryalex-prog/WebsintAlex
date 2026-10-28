@@ -17,7 +17,9 @@ import {
   createVariationButtons,
   createSequencer,
   createPartButtons,
-  createIconButton
+  createIconButton,
+  createViewSwitch,
+  createLayoutSwitch
 } from './controls.js'
 import { createIcon } from './icons.js'
 
@@ -249,18 +251,56 @@ function readPalette() {
   }
 }
 
+const VIEWS = [
+  { id: 'network', label: 'Вид: сеть' },
+  { id: 'flow', label: 'Вид: волна по коре' },
+  { id: 'storm', label: 'Вид: ядро' },
+  { id: 'ink', label: 'Вид: ленты-аксоны' }
+]
+
+const LAYOUTS = [
+  {
+    id: 'layoutBold',
+    page: 'index.html',
+    label: 'Раскладка: сеть на весь экран'
+  },
+  { id: 'layoutClassic', page: 'classic.html', label: 'Раскладка: стойка' }
+]
+
+// Режим берётся из адреса (?view=flow), чтобы ссылка открывала тот же вид
+function readView() {
+  const view = new URLSearchParams(location.search).get('view')
+  return VIEWS.some(({ id }) => id === view) ? view : 'network'
+}
+
+function saveView(view) {
+  const url = new URL(location.href)
+  url.searchParams.set('view', view)
+  history.replaceState(null, '', url)
+  return url.search
+}
+
 // Three.js грузится отдельно: без сети звук всё равно работает
 function initScreen() {
   const reducedMotion = window.matchMedia(
     '(prefers-reduced-motion: reduce)'
   ).matches
-  import('./brain3d.js')
-    .then(({ initBrain }) => {
-      brain = initBrain(
-        document.getElementById('screen'),
-        readPalette(),
-        reducedMotion
-      )
+  const screen = document.getElementById('screen')
+  const view = readView()
+  import('./visuals.js')
+    .then(({ initVisuals }) => {
+      brain = initVisuals(screen, readPalette(), reducedMotion, view)
+      const layout =
+        screen.dataset.framing === 'full' ? 'layoutBold' : 'layoutClassic'
+      const layoutSwitch = createLayoutSwitch(LAYOUTS, layout)
+      const viewSwitch = createViewSwitch(VIEWS, view, (next) => {
+        brain.setMode(next)
+        layoutSwitch.setQuery(saveView(next))
+      })
+      const switches = document.createElement('div')
+      switches.className = 'Switches'
+      switches.append(viewSwitch.element, layoutSwitch.element)
+      screen.appendChild(switches)
     })
     .catch((error) => console.warn('3D-сеть не загрузилась', error))
 }
@@ -343,7 +383,12 @@ function updateLoop() {
       bpm: audio.isPlaying() ? audio.getTempo() : 84,
       djFilter: djFilterValue,
       space: spaces.reduce((sum, value) => sum + value, 0) / spaces.length,
-      part: audio.getCurrentPart()
+      part: audio.getCurrentPart(),
+      master:
+        levels && Number.isFinite(levels.master)
+          ? Math.min(1, Math.max(0, (levels.master + 45) / 35))
+          : 0,
+      playing: audio.isPlaying()
     })
   }
   requestAnimationFrame(updateLoop)
