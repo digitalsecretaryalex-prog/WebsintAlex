@@ -2,6 +2,7 @@
 // Режим живёт в своём файле в views/ и при смене освобождает ресурсы.
 import * as THREE from 'three'
 import { createSpikes } from './views/spikes.js'
+import { createBackdrop, BACKGROUNDS } from './views/background.js'
 import { createNetwork } from './views/network.js'
 import {
   createFlight,
@@ -18,13 +19,15 @@ const CREATE = {
   cascade: createCascade
 }
 export const VIEW_NAMES = Object.keys(CREATE)
+export { BACKGROUNDS }
 
-// По частям сета: насыщенность, доля видимых точек и связей, энергия
+// По частям сета: насыщенность, доля видимых точек, энергия
+// links: доля связей между шарами при «угасании связей»
 const PART_LOOK = [
-  { saturation: 1, density: 1, energy: 1 },
-  { saturation: 0.7, density: 0.85, energy: 0.85 },
-  { saturation: 0.4, density: 0.7, energy: 0.65 },
-  { saturation: 0.15, density: 0.55, energy: 0.5 }
+  { saturation: 1, density: 1, energy: 1, links: 1 },
+  { saturation: 0.7, density: 0.85, energy: 0.85, links: 0.65 },
+  { saturation: 0.4, density: 0.7, energy: 0.65, links: 0.4 },
+  { saturation: 0.15, density: 0.55, energy: 0.5, links: 0.2 }
 ]
 
 function lerp(from, to, amount) {
@@ -64,9 +67,16 @@ function disposeScene(scene) {
   })
 }
 
-export function initVisuals(container, palette, reducedMotion, mode) {
+export function initVisuals(container, palette, reducedMotion, mode, ground) {
   const renderer = new THREE.WebGLRenderer({ antialias: true })
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+  // сначала фон, потом вид поверх без очистки
+  renderer.autoClear = false
+  renderer.domElement.setAttribute('role', 'img')
+  renderer.domElement.setAttribute(
+    'aria-label',
+    '3D-нейроны: светятся вместе с музыкой, мышью меняется ракурс'
+  )
   container.appendChild(renderer.domElement)
 
   const colors = {
@@ -108,18 +118,30 @@ export function initVisuals(container, palette, reducedMotion, mode) {
     master: 0,
     part: 0,
     playing: false,
-    panelHidden: false
+    panelHidden: false,
+    prune: false,
+    breath: null
   }
   const look = {
     alive: [0, 0, 0, 0, 0, 0],
     saturation: 1,
     density: 1,
     energy: 0.5,
-    dim: 1
+    dim: 1,
+    links: 1
   }
 
   let view = null
   let name = null
+  let backdrop = null
+  let groundName = null
+
+  function setBackground(next) {
+    if (!BACKGROUNDS.includes(next) || next === groundName) return
+    if (backdrop) disposeScene(backdrop.scene)
+    groundName = next
+    backdrop = createBackdrop({ renderer, colors }, next)
+  }
 
   function setMode(next) {
     if (!CREATE[next] || next === name) return
@@ -168,6 +190,7 @@ export function initVisuals(container, palette, reducedMotion, mode) {
       ease * 0.4
     )
     look.dim = lerp(look.dim, 1 - closed * 0.3, ease)
+    look.links = lerp(look.links, part.links, ease * 0.4)
     look.energy = lerp(
       look.energy,
       part.energy * (target.playing ? 0.45 + target.master * 0.55 : 0.35),
@@ -187,11 +210,14 @@ export function initVisuals(container, palette, reducedMotion, mode) {
     spikes.update(dt, reducedMotion ? 0 : 0.8 * look.energy, decay)
 
     view.update({ dt, time: now / 1000, target, look, speed, decay, spikes })
+    backdrop.update(dt, look, reducedMotion ? 0.15 : 1)
+    renderer.render(backdrop.scene, view.camera)
     renderer.render(view.scene, view.camera)
   }
 
+  setBackground(BACKGROUNDS.includes(ground) ? ground : 'dust')
   setMode(CREATE[mode] ? mode : 'network')
   requestAnimationFrame(frame)
 
-  return { setState, pulse, setMode, getMode: () => name }
+  return { setState, pulse, setMode, setBackground, getMode: () => name }
 }

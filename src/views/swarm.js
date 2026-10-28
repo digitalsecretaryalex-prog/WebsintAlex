@@ -3,7 +3,7 @@
 // Нота слоя зажигает шар этого слоя и пускает сигналы к соседям.
 import * as THREE from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
-import { softMaterial, createDust } from './dust.js'
+import { softMaterial } from './background.js'
 
 const NEURONS = 12
 const SURFACE = 3600
@@ -192,7 +192,6 @@ export function createSwarm(
   mode
 ) {
   const scene = new THREE.Scene()
-  scene.background = colors.screen
   const camera = new THREE.PerspectiveCamera(45, 1, 0.05, 80)
   const focus = new THREE.Vector3(0, 0.3, mode === 'flight' ? -6 : -4)
   camera.position.set(0, 0.3, 3)
@@ -206,9 +205,6 @@ export function createSwarm(
   controls.minDistance = 1.5
   controls.maxDistance = 12
   controls.update()
-
-  const dust = createDust({ renderer, colors }, focus)
-  scene.add(dust.points)
 
   const neurons = Array.from({ length: NEURONS }, (_, index) => ({
     position: new THREE.Vector3(0, 0, 99),
@@ -338,6 +334,7 @@ export function createSwarm(
             Math.random() * 2 - 1
           ).normalize(),
           phase: Math.random(),
+          rank: Math.random(),
           rate: 0.12 + Math.random() * 0.12,
           forward: Math.random() < 0.5,
           strength: 0,
@@ -367,6 +364,7 @@ export function createSwarm(
     neuron.strength = strength
     pairs.forEach((pair) => {
       if (pair.a !== neuron && pair.b !== neuron) return
+      if (pair.strength < 0.02) return
       if (signals.length >= MAX_SIGNALS) return
       signals.push({
         pair,
@@ -450,8 +448,12 @@ export function createSwarm(
       const age = time - neuron.fired
       uniforms.uFade.value[index] = fade
       uniforms.uFlash.value[index] = Math.exp(-age * 3) * (neuron.strength ?? 1)
-      uniforms.uRadius.value[index] =
-        neuron.radius * (1 + Math.sin(time * speed + neuron.seed) * 0.04)
+      // свой ритм дыхания у каждого шара или общий вдох с кругом «Дыхание»
+      const breath =
+        target.breath === null
+          ? Math.sin(time * speed + neuron.seed) * 0.04
+          : (target.breath - 0.5) * 0.14
+      uniforms.uRadius.value[index] = neuron.radius * (1 + breath)
       uniforms.uAlive.value[index] = look.alive[neuron.layer]
       uniforms.uFlashColor.value[index].set(
         neuron.color.r,
@@ -472,9 +474,19 @@ export function createSwarm(
         .crossVectors(direction, pair.axis)
         .normalize()
         .multiplyScalar(length * 0.12)
+      // угасание связей: к концу сета остаются связи с малым rank
+      const kept = target.prune
+        ? 1 -
+          THREE.MathUtils.smoothstep(
+            pair.rank,
+            look.links - 0.08,
+            look.links + 0.08
+          )
+        : 1
       pair.strength =
         Math.min(pair.a.fade, pair.b.fade) *
         (1 - THREE.MathUtils.smoothstep(length, 1.5, REACH[mode])) *
+        kept *
         look.dim
       lineColor
         .copy(pair.a.color)
@@ -550,7 +562,6 @@ export function createSwarm(
     uniforms.uDensity.value = look.density
     uniforms.uSaturation.value = look.saturation
     uniforms.uDim.value = look.dim
-    dust.update(time, motion)
 
     // курсор раздвигает точки там, куда указывает
     controls.update()
