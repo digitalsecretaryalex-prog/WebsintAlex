@@ -277,7 +277,9 @@ const VIEWS = [
   { id: 'flight', label: 'Вид: полёт сквозь нейроны' },
   { id: 'stream', label: 'Вид: лента нейронов' },
   { id: 'field', label: 'Вид: поле нейронов' },
-  { id: 'cascade', label: 'Вид: каскад' }
+  { id: 'cascade', label: 'Вид: каскад' },
+  { id: 'tunnel', label: 'Вид: тоннель, полёт за импульсом по цепи нейронов' },
+  { id: 'wave', label: 'Вид: волна, кольца нот по полю' }
 ]
 
 // Вид берётся из адреса (?view=field), чтобы ссылка открывала тот же вид
@@ -463,6 +465,7 @@ function updateLoop(now) {
   if (brain) {
     const spaces = Object.values(spaceValues)
     const playing = audio.isPlaying()
+    const sounding = audio.isSounding()
     const on = layers.map(
       (layer) => audio.getLayerState(layer.id).isOn && playing
     )
@@ -478,6 +481,8 @@ function updateLoop(now) {
       part,
       master,
       playing,
+      sounding,
+      beat: sounding ? audio.getBarPosition() : null,
       panelHidden: document.body.classList.contains('isPanelHidden'),
       ...extra
     })

@@ -230,6 +230,16 @@ export function isPlaying() {
   return playing
 }
 
+// Звук идёт на самом деле: транспорт уже стартовал и контекст не на паузе.
+// По этому флагу просыпаются нейроны, а не по клику.
+export function isSounding() {
+  return (
+    playing &&
+    Tone.getTransport().state === 'started' &&
+    Tone.getContext().state === 'running'
+  )
+}
+
 export async function togglePlay() {
   await ensureStarted()
   const transport = Tone.getTransport()

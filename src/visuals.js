@@ -9,12 +9,16 @@ import {
   createField,
   createCascade
 } from './views/swarm.js'
+import { createTunnel } from './views/tunnel.js'
+import { createWave } from './views/wave.js'
 
 const CREATE = {
   flight: createFlight,
   stream: createStream,
   field: createField,
-  cascade: createCascade
+  cascade: createCascade,
+  tunnel: createTunnel,
+  wave: createWave
 }
 export const VIEW_NAMES = Object.keys(CREATE)
 export { BACKGROUNDS }
@@ -97,6 +101,10 @@ export function initVisuals(container, palette, reducedMotion, mode, ground) {
     master: 0,
     part: 0,
     playing: false,
+    // sounding: звук реально идёт (транспорт запущен, контекст работает)
+    sounding: false,
+    // beat: позиция в тактах, пока звучит, иначе null
+    beat: null,
     panelHidden: false,
     prune: false,
     breath: null
@@ -107,7 +115,9 @@ export function initVisuals(container, palette, reducedMotion, mode, ground) {
     density: 1,
     energy: 0.5,
     dim: 1,
-    links: 1
+    links: 1,
+    // 0 сеть спит, 1 проснулась; просыпается быстрее, чем засыпает
+    wake: 0
   }
 
   let view = null
@@ -160,6 +170,10 @@ export function initVisuals(container, palette, reducedMotion, mode, ground) {
     if (document.hidden || !view) return
 
     const ease = 1 - Math.exp(-dt * 2.5)
+    const wakeGoal = target.sounding ? 1 : 0
+    look.wake +=
+      (wakeGoal - look.wake) *
+      (1 - Math.exp(-dt * (wakeGoal > look.wake ? 2.2 : 0.8)))
     const part = PART_LOOK[target.part]
     const closed = Math.max(0, -target.djFilter)
     look.saturation = lerp(look.saturation, part.saturation, ease * 0.4)
@@ -186,11 +200,15 @@ export function initVisuals(container, palette, reducedMotion, mode, ground) {
 
     const speed = 0.9 * (target.bpm / 84)
     const decay = 0.5 + target.space * 1.6
-    spikes.update(dt, reducedMotion ? 0 : 0.8 * look.energy, decay)
+    spikes.update(dt, reducedMotion ? 0 : 0.8 * look.energy * look.wake, decay)
 
     view.update({ dt, time: now / 1000, target, look, speed, decay, spikes })
-    backdrop.update(dt, look, reducedMotion ? 0.15 : 1)
-    renderer.render(backdrop.scene, view.camera)
+    // свой фон у видов из эталонных сцен; остальные рисуются поверх общего
+    renderer.clear()
+    if (!view.ownBackdrop) {
+      backdrop.update(dt, look, (reducedMotion ? 0.15 : 1) * Math.max(0.08, look.wake))
+      renderer.render(backdrop.scene, view.camera)
+    }
     renderer.render(view.scene, view.camera)
   }
 

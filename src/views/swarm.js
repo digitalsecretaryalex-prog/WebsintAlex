@@ -389,12 +389,17 @@ export function createSwarm(
   const normal = new THREE.Vector3()
   const hit = new THREE.Vector3()
   let time = 0
+  // clock: время движения, стоит, пока сеть спит
+  let clock = 0
   let stream = 0
 
   function update({ dt, target, look, speed, spikes }) {
     const motion = reducedMotion ? 0.15 : 1
+    // до звука шары стоят, со звуком плывут
+    const live = motion * look.wake
     time += dt
-    const drift = dt * speed * (0.45 + look.energy * 0.7) * motion
+    clock += dt * live
+    const drift = dt * speed * (0.45 + look.energy * 0.7) * live
     stream += drift * 0.6
     spread += ((target.panelHidden ? 1 : 0) - spread) * (1 - Math.exp(-dt * 2))
 
@@ -430,10 +435,10 @@ export function createSwarm(
         neuron.home.x += drift * DRIFT[mode] * parallax
         if (neuron.home.x > neuron.bound) neuron.home.x -= 2 * neuron.bound
         neuron.position.set(
-          neuron.home.x + Math.sin(time * 0.2 + neuron.seed) * 0.12 * motion,
+          neuron.home.x + Math.sin(clock * 0.2 + neuron.seed) * 0.12 * motion,
           neuron.home.y -
             neuron.drop * spread +
-            Math.cos(time * 0.17 + neuron.seed) * 0.1 * motion,
+            Math.cos(clock * 0.17 + neuron.seed) * 0.1 * motion,
           neuron.home.z
         )
         fade =
@@ -451,7 +456,7 @@ export function createSwarm(
       // свой ритм дыхания у каждого шара или общий вдох с кругом «Дыхание»
       const breath =
         target.breath === null
-          ? Math.sin(time * speed + neuron.seed) * 0.04
+          ? Math.sin(clock * speed + neuron.seed) * 0.04
           : (target.breath - 0.5) * 0.14
       uniforms.uRadius.value[index] = neuron.radius * (1 + breath)
       uniforms.uAlive.value[index] = look.alive[neuron.layer]
@@ -492,7 +497,7 @@ export function createSwarm(
         .copy(pair.a.color)
         .lerp(pair.b.color, 0.5)
         .lerp(colors.ice, 0.5 + 0.5 * (1 - look.saturation))
-        .multiplyScalar(0.22 * pair.strength)
+        .multiplyScalar(0.22 * pair.strength * (0.5 + 0.5 * look.wake))
       for (let s = 0; s < SEGMENTS; s++) {
         const offset = (index * SEGMENTS + s) * 6
         curve(pair, s / SEGMENTS, point).toArray(linePositions, offset)
@@ -511,12 +516,12 @@ export function createSwarm(
     // постоянные импульсы: по одному на линию, бегут в свою сторону
     sparks.positions.fill(999)
     pairs.forEach((pair, index) => {
-      let t = (pair.phase + time * pair.rate * speed * motion) % 1
+      let t = (pair.phase + clock * pair.rate * speed) % 1
       if (!pair.forward) t = 1 - t
       curve(pair, t, point).toArray(sparks.positions, index * 3)
       lineColor
         .copy(colors.ice)
-        .multiplyScalar(0.7 * pair.strength * Math.sin(t * Math.PI))
+        .multiplyScalar(0.7 * pair.strength * Math.sin(t * Math.PI) * look.wake)
         .toArray(sparks.colors, index * 3)
       sparks.sizes[index] = 36
     })
@@ -556,12 +561,14 @@ export function createSwarm(
     high.copy(colors.ice).lerp(colors.quiet, (1 - look.saturation) * 0.5)
     uniforms.uLow.value.copy(low).multiplyScalar(0.6)
     uniforms.uHigh.value.copy(high)
-    uniforms.uTime.value = time * motion
+    uniforms.uTime.value = clock
     uniforms.uStream.value = stream
     uniforms.uWave.value = 0.08 + look.energy * 0.1
     uniforms.uDensity.value = look.density
     uniforms.uSaturation.value = look.saturation
-    uniforms.uDim.value = look.dim
+    // во сне свет слабый и медленно дышит
+    const breath = 1 + (1 - look.wake) * 0.14 * Math.sin(time * 0.9)
+    uniforms.uDim.value = look.dim * (0.45 + 0.55 * look.wake) * breath
 
     // курсор раздвигает точки там, куда указывает
     controls.update()
