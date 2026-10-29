@@ -41,15 +41,13 @@
   gap: 8px;
 }
 
-.ViewSwitch,
-.LayoutSwitch {
+.ViewSwitch {
   display: none;
   flex-wrap: wrap;
   gap: 8px;
 }
 
-.Switches.isOpen .ViewSwitch,
-.Switches.isOpen .LayoutSwitch {
+.Switches.isOpen .ViewSwitch {
   display: flex;
 }
 

@@ -36,21 +36,7 @@ export const icons = {
     '<circle cx="6" cy="7" r="2.4"/><circle cx="17" cy="6" r="2.4"/><circle cx="11.5" cy="12" r="2.4"/><circle cx="6" cy="17.5" r="2.4"/><circle cx="17.5" cy="17" r="2.4"/>',
   cascade:
     '<circle cx="5" cy="12" r="2.4"/><circle cx="12" cy="6" r="2.4"/><circle cx="12" cy="18" r="2.4"/><circle cx="19.5" cy="12" r="2.4"/><path d="M7 10.6l3-2.4M7 13.4l3 2.4M14 7.5l3.5 2.8M14 16.5l3.5-2.8"/>',
-  network:
-    '<circle cx="6" cy="7" r="2"/><circle cx="18" cy="6" r="2"/><circle cx="12" cy="17" r="2"/><path d="M8 7.5l8-1M7 9l4 6.5M17 8l-4 7.5"/>',
 
-  // раскладки
-  layoutBold:
-    '<circle cx="12" cy="8" r="4.5"/><rect x="3" y="15" width="4" height="6" rx="2"/><rect x="10" y="15" width="4" height="6" rx="2"/><rect x="17" y="15" width="4" height="6" rx="2"/>',
-  panelM:
-    '<rect x="2.5" y="9" width="4" height="11" rx="2"/><rect x="10" y="9" width="4" height="11" rx="2"/><rect x="17.5" y="9" width="4" height="11" rx="2"/><path d="M10 6l2-2 2 2"/>',
-  panelA:
-    '<rect x="2" y="6" width="3" height="14" rx="1.5"/><rect x="7" y="6" width="9" height="14" rx="3"/><rect x="18" y="6" width="3" height="14" rx="1.5"/>',
-  panelB:
-    '<rect x="2" y="5" width="3" height="15" rx="1.5"/><rect x="7" y="5" width="3" height="15" rx="1.5"/><rect x="12" y="5" width="10" height="15" rx="3"/>',
-  panelC:
-    '<rect x="4" y="3" width="16" height="7" rx="2"/><rect x="5" y="13" width="3" height="8" rx="1.5"/><rect x="10.5" y="13" width="3" height="8" rx="1.5"/><rect x="16" y="13" width="3" height="8" rx="1.5"/>',
-  more: '<path d="M6 15l6-6 6 6"/>',
   panelHide: '<path d="M6 8l6 6 6-6"/><path d="M4 19h16"/>',
   panelShow: '<path d="M6 14l6-6 6 6"/><path d="M4 19h16"/>',
   // фоны

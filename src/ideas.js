@@ -32,7 +32,7 @@ function download(blob, name) {
 }
 
 // actions из main.js: selectPart, setVariation, turnOff, togglePlay
-export function initIdeas({ screen, instrument, palette, actions, onSave }) {
+export function initIdeas({ screen, instrument, palette, actions }) {
   const query = new URLSearchParams(location.search).get('ideas')
   const active = new Set(
     (query || '').split(',').filter((id) => SAVED.includes(id))
@@ -99,7 +99,6 @@ export function initIdeas({ screen, instrument, palette, actions, onSave }) {
     if (active.size) url.searchParams.set('ideas', [...active].join(','))
     else url.searchParams.delete('ideas')
     history.replaceState(null, '', url)
-    onSave()
   }
 
   function show() {

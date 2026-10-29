@@ -1,4 +1,4 @@
-// Точка входа: связывает звук, контролы и 3D-сеть.
+// Точка входа: связывает звук, контролы и 3D-нейроны.
 import {
   layers,
   parts,
@@ -18,8 +18,7 @@ import {
   createSequencer,
   createPartButtons,
   createIconButton,
-  createViewSwitch,
-  createLayoutSwitch
+  createViewSwitch
 } from './controls.js'
 import { createIcon } from './icons.js'
 import { initIdeas } from './ideas.js'
@@ -33,9 +32,6 @@ let sequencer = null
 let brain = null
 let djFilterValue = 0
 let shownPart = 0
-const panel = readPanel()
-let selectedLayer = 'kick'
-let inspector = null
 let panelToggle = null
 let ideas = null
 
@@ -215,76 +211,17 @@ function initLayers() {
     )
     channelRow.append(fader.element, mute.element)
 
-    // В вариантах панели вариации и ручки лежат в одной обёртке,
-    // её можно спрятать, показать поверх или перенести в инспектор
-    let details = null
-    if (panel) {
-      details = document.createElement('div')
-      details.className = 'LayerDetails'
-      details.append(variations.element, knobRow)
-      strip.append(launch.element, details, channelRow)
-      strip.addEventListener('pointerdown', () => selectLayer(layer.id))
-      strip.addEventListener('focusin', () => selectLayer(layer.id))
-    } else {
-      strip.append(launch.element, variations.element, knobRow, channelRow)
-    }
-    if (panel === 'c' || panel === 'm') {
-      const more = createIconButton(
-        'MoreButton',
-        'more',
-        `${layer.name}: все настройки`,
-        () => {
-          const isOpen = strip.classList.toggle('isOpen')
-          more.element.setAttribute('aria-expanded', String(isOpen))
-        }
-      )
-      more.element.setAttribute('aria-expanded', 'false')
-      channelRow.appendChild(more.element)
-    }
+    strip.append(launch.element, variations.element, knobRow, channelRow)
     container.appendChild(strip)
     layerControls[layer.id] = {
       launch,
       variations,
       knobs,
       fader,
-      mute,
-      strip,
-      details
+      mute
     }
     updateLayer(layer.id)
   })
-  if (panel === 'b') {
-    inspector = document.createElement('section')
-    inspector.className = 'Inspector'
-    container.appendChild(inspector)
-  }
-  if (panel) {
-    document.body.dataset.panel = panel
-    selectLayer(selectedLayer)
-  }
-}
-
-// Выбранный канал: в A раскрывается, в B его настройки уходят в инспектор
-function selectLayer(id) {
-  const previous = layerControls[selectedLayer]
-  selectedLayer = id
-  layers.forEach((layer) =>
-    layerControls[layer.id].strip.classList.toggle(
-      'isSelected',
-      layer.id === id
-    )
-  )
-  if (panel !== 'b') return
-  if (previous.details.parentElement === inspector) {
-    previous.strip.insertBefore(
-      previous.details,
-      previous.strip.lastElementChild
-    )
-  }
-  const layer = layers.find((item) => item.id === id)
-  inspector.className = `Inspector is-${id}`
-  inspector.setAttribute('aria-label', `${layer.name}: настройки`)
-  inspector.replaceChildren(layerControls[id].details)
 }
 
 function initMaster() {
@@ -337,51 +274,16 @@ function readPalette() {
 }
 
 const VIEWS = [
-  { id: 'network', label: 'Вид: сеть' },
   { id: 'flight', label: 'Вид: полёт сквозь нейроны' },
   { id: 'stream', label: 'Вид: лента нейронов' },
   { id: 'field', label: 'Вид: поле нейронов' },
   { id: 'cascade', label: 'Вид: каскад' }
 ]
 
-const LAYOUTS = [
-  { id: 'layoutBold', page: 'index.html', label: 'Панель: исходная' },
-  {
-    id: 'panelM',
-    page: 'index.html',
-    panel: 'm',
-    label: 'Панель M: минимум, детали по наведению'
-  },
-  {
-    id: 'panelA',
-    page: 'index.html',
-    panel: 'a',
-    label: 'Панель A: раскрыт выбранный канал'
-  },
-  {
-    id: 'panelB',
-    page: 'index.html',
-    panel: 'b',
-    label: 'Панель B: общий инспектор'
-  },
-  {
-    id: 'panelC',
-    page: 'index.html',
-    panel: 'c',
-    label: 'Панель C: детали по наведению'
-  }
-]
-
-// Вариант нижней панели: ?layout=a|b|c, без параметра исходная
-function readPanel() {
-  const value = new URLSearchParams(location.search).get('layout')
-  return ['m', 'a', 'b', 'c'].includes(value) ? value : null
-}
-
 // Вид берётся из адреса (?view=field), чтобы ссылка открывала тот же вид
 function readView() {
   const view = new URLSearchParams(location.search).get('view')
-  return VIEWS.some(({ id }) => id === view) ? view : 'network'
+  return VIEWS.some(({ id }) => id === view) ? view : 'field'
 }
 
 const BACKGROUND_LIST = [
@@ -416,12 +318,9 @@ function initScreen() {
       const palette = readPalette()
       const ground = readBackground()
       brain = initVisuals(screen, palette, reducedMotion, view, ground)
-      const layout = panel ? `panel${panel.toUpperCase()}` : 'layoutBold'
-      const layoutSwitch = createLayoutSwitch(LAYOUTS, layout)
       const viewSwitch = createViewSwitch(VIEWS, view, (next) => {
         brain.setMode(next)
         saveParam('view', next)
-        layoutSwitch.refresh()
       })
       const groundSwitch = createViewSwitch(
         BACKGROUND_LIST,
@@ -429,7 +328,6 @@ function initScreen() {
         (next) => {
           brain.setBackground(next)
           saveParam('bg', next)
-          layoutSwitch.refresh()
         },
         'Фон'
       )
@@ -442,8 +340,7 @@ function initScreen() {
           setVariation: applyVariation,
           turnOff,
           togglePlay
-        },
-        onSave: () => layoutSwitch.refresh()
+        }
       })
       // варианты спрятаны за одной кнопкой: на экране остаётся минимум
       const switches = document.createElement('div')
@@ -469,14 +366,13 @@ function initScreen() {
         toggle.element,
         panelToggle.element,
         viewSwitch.element,
-        layoutSwitch.element,
         groundSwitch.element,
         ideas.element
       )
       // поверх интерфейса: раскрытые ряды не уходят под капсулы
       document.body.appendChild(switches)
     })
-    .catch((error) => console.warn('3D-сеть не загрузилась', error))
+    .catch((error) => console.warn('3D-нейроны не загрузились', error))
 }
 
 // Панель прячется, чтобы смотреть на нейроны; звук не меняется

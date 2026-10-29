@@ -453,37 +453,6 @@ export function createViewSwitch(
   return { element, setState }
 }
 
-// Переключатель раскладок: ссылки на страницы, вид нейронов сохраняется
-export function createLayoutSwitch(layouts, current) {
-  const element = document.createElement('nav')
-  element.className = 'LayoutSwitch'
-  element.setAttribute('aria-label', 'Раскладка')
-  const links = layouts.map((layout) => {
-    const link = document.createElement('a')
-    link.className = 'ViewButton'
-    link.setAttribute('aria-label', layout.label)
-    link.title = layout.label
-    if (layout.id === current) {
-      link.classList.add('isOn')
-      link.setAttribute('aria-current', 'page')
-    }
-    link.appendChild(createIcon(layout.id))
-    element.appendChild(link)
-    return { layout, link }
-  })
-  // ссылки несут вид, фон и включённые идеи из адреса страницы
-  function refresh() {
-    links.forEach(({ layout, link }) => {
-      const query = new URLSearchParams(location.search)
-      if (layout.panel) query.set('layout', layout.panel)
-      else query.delete('layout')
-      link.setAttribute('href', `${layout.page}?${query}`)
-    })
-  }
-  refresh()
-  return { element, refresh }
-}
-
 // Идеи: кнопки-переключатели, включать можно несколько сразу
 export function createIdeaSwitch(ideas, onToggle) {
   const element = document.createElement('div')
