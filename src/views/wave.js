@@ -79,7 +79,11 @@ function buildMembrane() {
       const theta = (i / lat) * Math.PI
       for (let j = 0; j < lon; j++) {
         const phi = (j / lon) * Math.PI * 2
-        point.set(Math.sin(theta) * Math.cos(phi), Math.sin(theta) * Math.sin(phi), Math.cos(theta))
+        point.set(
+          Math.sin(theta) * Math.cos(phi),
+          Math.sin(theta) * Math.sin(phi),
+          Math.cos(theta)
+        )
         push(cell, 0, point, none, none, [i / lat, j / lon, 0, 0])
       }
     }
@@ -95,7 +99,12 @@ function buildMembrane() {
         const normal = side2.clone().applyQuaternion(turn)
         for (let c = 0; c < cols; c++) {
           const w = (c / (cols - 1)) * 2 - 1
-          push(cell, 1, at, across, normal, [w, branch.widths[k], branch.orders[k], k * 0.12])
+          push(cell, 1, at, across, normal, [
+            w,
+            branch.widths[k],
+            branch.orders[k],
+            k * 0.12
+          ])
         }
       })
     })
@@ -110,11 +119,26 @@ function buildMembrane() {
     }
   }
   const geometry = new THREE.BufferGeometry()
-  geometry.setAttribute('position', new THREE.Float32BufferAttribute(data.position, 3))
-  geometry.setAttribute('aSide1', new THREE.Float32BufferAttribute(data.aSide1, 3))
-  geometry.setAttribute('aSide2', new THREE.Float32BufferAttribute(data.aSide2, 3))
-  geometry.setAttribute('aTube', new THREE.Float32BufferAttribute(data.aTube, 4))
-  geometry.setAttribute('aMeta', new THREE.Float32BufferAttribute(data.aMeta, 2))
+  geometry.setAttribute(
+    'position',
+    new THREE.Float32BufferAttribute(data.position, 3)
+  )
+  geometry.setAttribute(
+    'aSide1',
+    new THREE.Float32BufferAttribute(data.aSide1, 3)
+  )
+  geometry.setAttribute(
+    'aSide2',
+    new THREE.Float32BufferAttribute(data.aSide2, 3)
+  )
+  geometry.setAttribute(
+    'aTube',
+    new THREE.Float32BufferAttribute(data.aTube, 4)
+  )
+  geometry.setAttribute(
+    'aMeta',
+    new THREE.Float32BufferAttribute(data.aMeta, 2)
+  )
   return geometry
 }
 
@@ -311,16 +335,21 @@ export function createWave({ renderer, colors, reducedMotion, pointer }) {
     stream += dt * REF.flow * 2 * (target.bpm / 84) * live
     uniforms.uStream.value = stream
     uniforms.uTime.value = clock
-    uniforms.uWave.value = (1 + dive * REF.scrollRise) * (0.6 + 0.5 * look.energy)
+    uniforms.uWave.value =
+      (1 + dive * REF.scrollRise) * (0.6 + 0.5 * look.energy)
     const breath = 1 + (1 - wake) * 0.14 * Math.sin(time * 0.9)
-    uniforms.uLight.value = REF.brightness * 2 * (0.5 + 0.5 * wake) * breath * look.dim
+    uniforms.uLight.value =
+      REF.brightness * 2 * (0.5 + 0.5 * wake) * breath * look.dim
     uniforms.uWake.value = wake
     uniforms.uColLow.value.copy(lowRef).lerp(grey, (1 - look.saturation) * 0.5)
-    uniforms.uColHigh.value.copy(highRef).lerp(grey, (1 - look.saturation) * 0.5)
+    uniforms.uColHigh.value
+      .copy(highRef)
+      .lerp(grey, (1 - look.saturation) * 0.5)
 
     // нырок эталона: сверху вниз за первые 35 % пути, только ведёт его звук
     const toward = reducedMotion ? 0 : wake
-    dive += (toward - dive) * (1 - Math.exp(-dt * (toward > dive ? 0.35 : 0.25)))
+    dive +=
+      (toward - dive) * (1 - Math.exp(-dt * (toward > dive ? 0.35 : 0.25)))
     const ea = Math.min(dive / 0.35, 1)
     const e = ea * ea * (3 - 2 * ea)
 
@@ -346,7 +375,10 @@ export function createWave({ renderer, colors, reducedMotion, pointer }) {
     frame()
 
     raycaster.setFromCamera(pointer.ndc, camera)
-    raycaster.ray.at(Math.max(1, camera.position.distanceTo(chain.state.impulse)), hit)
+    raycaster.ray.at(
+      Math.max(1, camera.position.distanceTo(chain.state.impulse)),
+      hit
+    )
     uniforms.uCursor.value.lerp(hit, 0.12)
     uniforms.uActivity.value = pointer.activity
 
@@ -355,7 +387,14 @@ export function createWave({ renderer, colors, reducedMotion, pointer }) {
 
   function frame() {
     const shift = 0.2 * (1 - spread)
-    camera.setViewOffset(1000, 1000 * height, 0, shift * 1000 * height, 1000, 1000 * height)
+    camera.setViewOffset(
+      1000,
+      1000 * height,
+      0,
+      shift * 1000 * height,
+      1000,
+      1000 * height
+    )
   }
 
   function resize(width, h) {

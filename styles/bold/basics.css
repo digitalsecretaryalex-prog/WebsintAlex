@@ -52,6 +52,13 @@ body {
   overflow: hidden;
 }
 
+/* текста в инструменте мало: значения скрытой панели и заставка */
+body {
+  font-family: 'Golos Text', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
 body::after {
   content: '';
   position: fixed;
@@ -122,16 +129,22 @@ button {
   pointer-events: auto;
 }
 
-/* Панель скрыта: растр и капсулы уходят вниз и гаснут */
+/* Панели скрыты: уходят все, слева остаются темп и громкость (MiniConsole.css) */
+.Transport,
 .Raster,
-.Layers {
+.Layers,
+.Master,
+.Switches {
   transition:
     opacity 320ms var(--ease),
     transform 320ms var(--ease);
 }
 
+body.isPanelHidden .Transport,
 body.isPanelHidden .Raster,
-body.isPanelHidden .Layers {
+body.isPanelHidden .Layers,
+body.isPanelHidden .Master,
+body.isPanelHidden .Switches {
   opacity: 0;
   visibility: hidden;
   transform: translateY(32px);
@@ -143,10 +156,16 @@ body.isPanelHidden .Layers {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .Transport,
   .Raster,
   .Layers,
+  .Master,
+  .Switches,
+  body.isPanelHidden .Transport,
   body.isPanelHidden .Raster,
-  body.isPanelHidden .Layers {
+  body.isPanelHidden .Layers,
+  body.isPanelHidden .Master,
+  body.isPanelHidden .Switches {
     transition: none;
     transform: none;
   }

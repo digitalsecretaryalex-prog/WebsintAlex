@@ -65,8 +65,18 @@ export function growSkeleton(pyramidal) {
     const count = 5 + Math.floor(Math.random() * 3)
     for (let i = 0; i < count; i++) {
       // к камере и в стороны: оттуда в нейрон приходит сигнал
-      randomDirection(dir).add(new THREE.Vector3(0, 0, 0.75)).normalize()
-      grow(dir.clone(), dir, 2.8 + Math.random() * 1.8, 0.28, 1, branches, [0.4, 0.66])
+      randomDirection(dir)
+        .add(new THREE.Vector3(0, 0, 0.75))
+        .normalize()
+      grow(
+        dir.clone(),
+        dir,
+        2.8 + Math.random() * 1.8,
+        0.28,
+        1,
+        branches,
+        [0.4, 0.66]
+      )
     }
   }
   return branches
@@ -78,7 +88,8 @@ export function crossFrame(tangent, previousSide) {
   const side = previousSide
     ? previousSide.clone().addScaledVector(tangent, -previousSide.dot(tangent))
     : new THREE.Vector3().crossVectors(tangent, new THREE.Vector3(0, 1, 0.01))
-  if (side.lengthSq() < 1e-6) side.crossVectors(tangent, new THREE.Vector3(1, 0, 0))
+  if (side.lengthSq() < 1e-6)
+    side.crossVectors(tangent, new THREE.Vector3(1, 0, 0))
   side.normalize()
   const other = new THREE.Vector3().crossVectors(tangent, side).normalize()
   return [side, other]

@@ -18,7 +18,8 @@ import {
   createSequencer,
   createPartButtons,
   createIconButton,
-  createViewSwitch
+  createViewSwitch,
+  createStepper
 } from './controls.js'
 import { createIcon } from './icons.js'
 import { initIdeas } from './ideas.js'
@@ -34,11 +35,23 @@ let djFilterValue = 0
 let shownPart = 0
 let panelToggle = null
 let ideas = null
+let mini = null
+let tempoValue = parts[0].bpm
+const params = new URLSearchParams(location.search)
+// ?ui=metal: главные кнопки в жидком металле (src/metal.js)
+const isMetal = params.get('ui') === 'metal'
 
 function knobDefault(layer, param) {
   if (param === 'filter') return layer.filter.frequency
   if (param === 'echo') return layer.feedbackDelay.wet
   return layer.reverb.wet
+}
+
+function metalize(...buttons) {
+  if (!isMetal) return
+  import('./metal.js').then(({ addMetalSkin }) =>
+    buttons.forEach((button) => addMetalSkin(button))
+  )
 }
 
 function withIcon(control, icon) {
@@ -130,7 +143,11 @@ function initTransport() {
   const play = createIconButton('PlayButton', 'play', 'Старт', togglePlay)
   const tempo = createKnob(
     { label: 'Темп', unit: 'уд/мин', ...tempoRange, value: parts[0].bpm },
-    (bpm) => act(() => audio.setTempo(bpm))
+    (bpm) => {
+      tempoValue = bpm
+      mini?.tempo.setValue(bpm, true)
+      act(() => audio.setTempo(bpm))
+    }
   )
   const partButtons = createPartButtons(parts, selectPart)
   const resetButton = createIconButton(
@@ -147,6 +164,7 @@ function initTransport() {
     resetButton.element
   )
   transport = { play, tempo, parts: partButtons }
+  metalize(play.element, resetButton.element)
 }
 
 function initRaster() {
@@ -247,7 +265,10 @@ function initMaster() {
   )
   masterControls.volume = createFader(
     { ...volumeRange, label: 'Общая громкость', value: master.channel.volume },
-    (value) => act(() => audio.setMasterParam('volume', value))
+    (value) => {
+      mini?.volume.setValue(value, true)
+      act(() => audio.setMasterParam('volume', value))
+    }
   )
   masterControls.volume.element.classList.add('isMaster')
   element.append(
@@ -335,7 +356,6 @@ function initScreen() {
       )
       ideas = initIdeas({
         screen,
-        instrument: document.querySelector('.Instrument'),
         palette,
         actions: {
           selectPart: applyPart,
@@ -373,11 +393,13 @@ function initScreen() {
       )
       // поверх интерфейса: раскрытые ряды не уходят под капсулы
       document.body.appendChild(switches)
+      metalize(toggle.element, panelToggle.element)
     })
     .catch((error) => console.warn('3D-нейроны не загрузились', error))
 }
 
-// Панель прячется, чтобы смотреть на нейроны; звук не меняется
+// Панели прячутся все, чтобы смотреть на нейроны; звук не меняется.
+// Слева остаются темп и громкость с понятным шагом и кнопка возврата
 function togglePanel() {
   const isHidden = document.body.classList.toggle('isPanelHidden')
   panelToggle?.setIcon(
@@ -385,6 +407,61 @@ function togglePanel() {
     isHidden ? 'Показать панель' : 'Скрыть панель'
   )
   panelToggle?.element.setAttribute('aria-pressed', String(isHidden))
+  // фокус не теряется вместе со спрятанной кнопкой
+  const focused = document.activeElement
+  if (isHidden && focused && focused !== document.body)
+    mini.back.element.focus()
+  if (!isHidden && mini.element.contains(focused)) panelToggle?.element.focus()
+}
+
+function initMini() {
+  const element = document.createElement('aside')
+  element.className = 'MiniConsole'
+  element.setAttribute('aria-label', 'Темп и громкость')
+  const back = createIconButton(
+    'PanelBack',
+    'panelShow',
+    'Показать панели',
+    togglePanel
+  )
+  const text = document.createElement('span')
+  text.className = 'PanelBackText'
+  text.textContent = 'Панели'
+  back.element.append(text)
+  // темп по 1 уд/мин: части сета отличаются на 4–5, шаг 1 их не огрубляет
+  const tempo = createStepper(
+    {
+      label: 'Темп',
+      unit: 'уд/мин',
+      spoken: ['удар в минуту', 'удара в минуту', 'ударов в минуту'],
+      icon: 'tempo',
+      ...tempoRange,
+      step: 1,
+      value: tempoValue
+    },
+    (bpm) => {
+      tempoValue = bpm
+      transport.tempo.setValue(bpm, true)
+      act(() => audio.setTempo(bpm))
+    }
+  )
+  // громкость по 2 дБ: заметно на слух, от тишины до максимума 20 шагов
+  const volume = createStepper(
+    {
+      label: 'Общая громкость',
+      unit: 'дБ',
+      spoken: ['децибел', 'децибела', 'децибел'],
+      icon: 'volume',
+      ...volumeRange,
+      step: 2,
+      value: master.channel.volume
+    },
+    (db) => masterControls.volume.setValue(db)
+  )
+  element.append(back.element, tempo.element, volume.element)
+  document.body.appendChild(element)
+  mini = { element, back, tempo, volume }
+  metalize(back.element)
 }
 
 function onAudioEvent(event) {
@@ -416,15 +493,19 @@ function updateStates() {
     masterControls.djFilter.setValue(djFilterValue, true)
   }
   // пока крутилка в фокусе, её значение не перезаписывается
-  const isTempoInHand = document.activeElement === transport.tempo.element
+  const isTempoInHand =
+    document.activeElement === transport.tempo.element ||
+    mini.element.contains(document.activeElement)
   if (audio.isPlaying() && !isTempoInHand) {
     transport.tempo.setValue(audio.getTempo(), true)
+    mini.tempo.setValue(audio.getTempo(), true)
   }
 }
 
 function initKeyboard() {
   window.addEventListener('keydown', (event) => {
     if (event.repeat || event.metaKey || event.ctrlKey || event.altKey) return
+    if (document.body.classList.contains('isIntro')) return
     const isControl = event.target.closest('button, input, [role="slider"]')
     if (isControl && (event.code === 'Space' || event.code === 'Enter')) return
 
@@ -497,6 +578,11 @@ document.addEventListener('DOMContentLoaded', () => {
   initRaster()
   initLayers()
   initMaster()
+  initMini()
   initKeyboard()
   requestAnimationFrame(updateLoop)
+  // заставка: ?intro=0 пропускает её
+  if (params.get('intro') !== '0') {
+    import('./intro.js').then(({ showIntro }) => showIntro())
+  }
 })

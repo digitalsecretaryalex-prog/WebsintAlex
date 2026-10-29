@@ -95,22 +95,60 @@ function buildSkin() {
       branch.points.forEach((point, k) => {
         const [side1, side2] = crossFrame(branch.tangents[k], side)
         side = side1
-        const count = Math.max(4, Math.round((4 + branch.widths[k] * 16) * dense))
-        ring(cell, 1, point, side1, side2, count, branch.widths[k], branch.orders[k], k * 0.12)
+        const count = Math.max(
+          4,
+          Math.round((4 + branch.widths[k] * 16) * dense)
+        )
+        ring(
+          cell,
+          1,
+          point,
+          side1,
+          side2,
+          count,
+          branch.widths[k],
+          branch.orders[k],
+          k * 0.12
+        )
       })
     })
     // аксон: форму считает шейдер, здесь только доля пути и угол
     for (let i = 0; i < AXON_RINGS; i++) {
       const count = Math.round(13 * dense) + 1
-      ring(cell, 2, axis.set(0, 0, 0), across, up, count, 0, i / (AXON_RINGS - 1), i * 0.1)
+      ring(
+        cell,
+        2,
+        axis.set(0, 0, 0),
+        across,
+        up,
+        count,
+        0,
+        i / (AXON_RINGS - 1),
+        i * 0.1
+      )
     }
   }
   const geometry = new THREE.BufferGeometry()
-  geometry.setAttribute('position', new THREE.Float32BufferAttribute(data.position, 3))
-  geometry.setAttribute('aSide1', new THREE.Float32BufferAttribute(data.aSide1, 3))
-  geometry.setAttribute('aSide2', new THREE.Float32BufferAttribute(data.aSide2, 3))
-  geometry.setAttribute('aTube', new THREE.Float32BufferAttribute(data.aTube, 4))
-  geometry.setAttribute('aMeta', new THREE.Float32BufferAttribute(data.aMeta, 2))
+  geometry.setAttribute(
+    'position',
+    new THREE.Float32BufferAttribute(data.position, 3)
+  )
+  geometry.setAttribute(
+    'aSide1',
+    new THREE.Float32BufferAttribute(data.aSide1, 3)
+  )
+  geometry.setAttribute(
+    'aSide2',
+    new THREE.Float32BufferAttribute(data.aSide2, 3)
+  )
+  geometry.setAttribute(
+    'aTube',
+    new THREE.Float32BufferAttribute(data.aTube, 4)
+  )
+  geometry.setAttribute(
+    'aMeta',
+    new THREE.Float32BufferAttribute(data.aMeta, 2)
+  )
   return geometry
 }
 
@@ -299,7 +337,8 @@ export function createTunnel({ renderer, colors, reducedMotion, pointer }) {
 
     // свет: во сне слабый и медленно дышит, со звуком в полную силу
     const breath = 1 + (1 - wake) * 0.14 * Math.sin(time * 0.9)
-    uniforms.uLight.value = REF.brightness * 2.2 * (0.5 + 0.5 * wake) * breath * look.dim
+    uniforms.uLight.value =
+      REF.brightness * 2.2 * (0.5 + 0.5 * wake) * breath * look.dim
     uniforms.uWake.value = wake
     uniforms.uTime.value = clock
     // энергия части сета вместо скролла: вихрь сильнее, кольца крутятся быстрее
@@ -308,7 +347,9 @@ export function createTunnel({ renderer, colors, reducedMotion, pointer }) {
     uniforms.uRoll.value = roll
     uniforms.uKick.value = chain.state.kick * live
     uniforms.uColLow.value.copy(lowRef).lerp(grey, (1 - look.saturation) * 0.6)
-    uniforms.uColHigh.value.copy(highRef).lerp(grey, (1 - look.saturation) * 0.6)
+    uniforms.uColHigh.value
+      .copy(highRef)
+      .lerp(grey, (1 - look.saturation) * 0.6)
 
     // камера чуть сбоку от пути, взгляд на импульс и дальше вдоль аксона
     const travel = chain.state.travel
@@ -345,7 +386,14 @@ export function createTunnel({ renderer, colors, reducedMotion, pointer }) {
 
   function frame() {
     const shift = 0.2 * (1 - spread)
-    camera.setViewOffset(1000, 1000 * height, 0, shift * 1000 * height, 1000, 1000 * height)
+    camera.setViewOffset(
+      1000,
+      1000 * height,
+      0,
+      shift * 1000 * height,
+      1000,
+      1000 * height
+    )
   }
 
   function resize(width, h) {

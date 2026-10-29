@@ -206,7 +206,11 @@ export function initVisuals(container, palette, reducedMotion, mode, ground) {
     // свой фон у видов из эталонных сцен; остальные рисуются поверх общего
     renderer.clear()
     if (!view.ownBackdrop) {
-      backdrop.update(dt, look, (reducedMotion ? 0.15 : 1) * Math.max(0.08, look.wake))
+      backdrop.update(
+        dt,
+        look,
+        (reducedMotion ? 0.15 : 1) * Math.max(0.08, look.wake)
+      )
       renderer.render(backdrop.scene, view.camera)
     }
     renderer.render(view.scene, view.camera)

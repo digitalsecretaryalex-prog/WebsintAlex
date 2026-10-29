@@ -31,7 +31,7 @@ function download(blob, name) {
 }
 
 // actions из main.js: selectPart, setVariation, turnOff, togglePlay
-export function initIdeas({ screen, instrument, palette, actions }) {
+export function initIdeas({ screen, palette, actions }) {
   const query = new URLSearchParams(location.search).get('ideas')
   const active = new Set(
     (query || '').split(',').filter((id) => SAVED.includes(id))
@@ -47,7 +47,8 @@ export function initIdeas({ screen, instrument, palette, actions }) {
     async () => download(await trace.toBlob(), 'neurosynth-hypnogram.png')
   )
   trace.element.appendChild(save.element)
-  instrument.appendChild(trace.element)
+  // лента над растром бита: рядом ритм сейчас и след всего сета
+  document.getElementById('raster').prepend(trace.element)
 
   const score = createScore(
     {

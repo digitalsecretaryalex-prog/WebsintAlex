@@ -140,13 +140,19 @@ export function createChain({ tints, rest, reducedMotion }) {
     n.radius = 2.3 + Math.random() * 3.4
     n.fired = -99
   }
-  side.forEach((n, j) => placeSide(n, -LEAD - 3 + ((j + Math.random()) * SIDE_SPAN) / SIDE))
+  side.forEach((n, j) =>
+    placeSide(n, -LEAD - 3 + ((j + Math.random()) * SIDE_SPAN) / SIDE)
+  )
 
   function chainPosition(k, out) {
     const s = k * SPACING
     bend(s, flat)
     const slot = neurons[slotOf(k)]
-    return out.set(flat.x + slot.offset.x, flat.y + slot.offset.y, -(s - state.travel))
+    return out.set(
+      flat.x + slot.offset.x,
+      flat.y + slot.offset.y,
+      -(s - state.travel)
+    )
   }
 
   function assign(k) {
@@ -154,7 +160,9 @@ export function createChain({ tints, rest, reducedMotion }) {
     if (n.index === k) return
     n.index = k
     const angle = k * 2.4
-    n.offset.set(Math.cos(angle), Math.sin(angle)).multiplyScalar(0.25 + ((k * 0.37) % 1) * 0.2)
+    n.offset
+      .set(Math.cos(angle), Math.sin(angle))
+      .multiplyScalar(0.25 + ((k * 0.37) % 1) * 0.2)
     n.fired = -99
     n.tint.copy(rest)
   }
@@ -196,8 +204,10 @@ export function createChain({ tints, rest, reducedMotion }) {
     const linear = hop * SPACING
     const eased = (index + Math.max(impulse, 0)) * SPACING
     const goal = linear + (eased - linear) * 0.45 - LEAD
-    if (!reducedMotion) state.travel += (goal - state.travel) * (1 - Math.exp(-dt * 3))
-    for (let k = index - 1; k < index - 1 + CHAIN; k++) chainPosition(k, neurons[slotOf(k)].center)
+    if (!reducedMotion)
+      state.travel += (goal - state.travel) * (1 - Math.exp(-dt * 3))
+    for (let k = index - 1; k < index - 1 + CHAIN; k++)
+      chainPosition(k, neurons[slotOf(k)].center)
 
     // пробуждение: первым вспыхивает нейрон, на котором стоит импульс
     if (live > 0.3 && arrived < index) {
@@ -225,7 +235,13 @@ export function createChain({ tints, rest, reducedMotion }) {
       let bestScore = Infinity
       side.forEach((n) => {
         const d = n.s - state.travel
-        if (n.layer !== spike.layer || d < 1.5 || d > 24 || time - n.fired < 0.9) return
+        if (
+          n.layer !== spike.layer ||
+          d < 1.5 ||
+          d > 24 ||
+          time - n.fired < 0.9
+        )
+          return
         const score = Math.abs(d - 9) + Math.random() * 5
         if (score < bestScore) {
           best = n
@@ -264,14 +280,20 @@ export function createChain({ tints, rest, reducedMotion }) {
         -d
       )
       // аксон периферии идёт к ближайшему нейрону цепи
-      const k = Math.max(index - 1, Math.min(index + CHAIN - 2, Math.round(n.s / SPACING)))
+      const k = Math.max(
+        index - 1,
+        Math.min(index + CHAIN - 2, Math.round(n.s / SPACING))
+      )
       n.next.copy(neurons[slotOf(k)].center)
       n.grow = 1 - smoothstep(d, 16, 26)
       n.age = time - n.fired
       n.fade = smoothstep(d, -1, 2) * (1 - smoothstep(d, 34, 40))
       n.impulse =
-        !reducedMotion && n.age < SIGNAL_TIME ? smoothstep(n.age, 0.3, SIGNAL_TIME) : -1
-      if (n.age >= SIGNAL_TIME && n.age - dt < SIGNAL_TIME) neurons[slotOf(k)].boost = 1
+        !reducedMotion && n.age < SIGNAL_TIME
+          ? smoothstep(n.age, 0.3, SIGNAL_TIME)
+          : -1
+      if (n.age >= SIGNAL_TIME && n.age - dt < SIGNAL_TIME)
+        neurons[slotOf(k)].boost = 1
       n.alive = 0.3 + 0.7 * look.alive[n.layer]
       n.tint.copy(tints[n.layer])
     })

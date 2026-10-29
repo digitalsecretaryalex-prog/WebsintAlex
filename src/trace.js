@@ -1,5 +1,5 @@
-// Гипнограмма сета: ступеньки частей во времени и полосы слоёв под ними,
-// как на записи сна. Каждые полсекунды игры добавляется точка.
+// Гипнограмма сета: лента над растром бита. Ступени частей во времени и
+// растр слоёв под ними, как на записи сна. Каждые полсекунды игры точка.
 // toBlob() рисует ту же картинку крупно, с названием и длиной сета, в PNG.
 
 const SAMPLE = 0.5 // секунд между точками
@@ -30,7 +30,9 @@ export function createTrace(palette) {
     draw(canvas, canvas.clientWidth, canvas.clientHeight)
   }
 
-  // часть 1 сверху, часть 4 внизу: чем глубже, тем ниже, как стадии сна
+  // След как запись сна: линия спускается ступенями от части 1 к части 4,
+  // громкость даёт ей рябь, как у ЭЭГ. Под линией растр: точка на каждый
+  // отсчёт, пока слой звучит, как растр спайков на записи нейронов.
   function draw(target, width, height, scale = window.devicePixelRatio || 1) {
     if (!width || !height) return
     target.width = Math.round(width * scale)
@@ -39,45 +41,62 @@ export function createTrace(palette) {
     context.scale(scale, scale)
     context.clearRect(0, 0, width, height)
     const rows = palette.layers.length
-    const laneHeight = Math.max(3, height * 0.045)
-    const lanesTop = height - rows * (laneHeight + 2)
-    const stepTop = 6
-    const stepHeight = (lanesTop - 14 - stepTop) / 3
+    const rasterHeight = Math.min(height * 0.34, rows * 6)
+    const rowGap = rasterHeight / rows
+    const rasterTop = height - rasterHeight
+    const top = 4
+    const stage = (rasterTop - 6 - top) / 3.4
+    const levelOf = (part) => top + stage * (part + 0.2)
     const dx = width / Math.max(samples.length, MIN_POINTS)
 
+    // уровни частей: пунктир; засечка каждую минуту
     context.strokeStyle = palette.hair
+    context.globalAlpha = 0.35
     context.lineWidth = 1
+    context.setLineDash([1, 5])
     for (let part = 0; part < 4; part++) {
-      const y = stepTop + part * stepHeight + 0.5
+      const y = Math.round(levelOf(part)) + 0.5
       context.beginPath()
       context.moveTo(0, y)
       context.lineTo(width, y)
-      context.globalAlpha = 0.25
+      context.stroke()
+    }
+    context.setLineDash([])
+    for (let i = 120; i < samples.length; i += 120) {
+      const x = Math.round(i * dx) + 0.5
+      context.beginPath()
+      context.moveTo(x, rasterTop - 4)
+      context.lineTo(x, rasterTop)
       context.stroke()
     }
     context.globalAlpha = 1
+    if (!samples.length) return
 
-    // громкость: полупрозрачная заливка под ступеньками
-    context.fillStyle = palette.signal
-    samples.forEach((sample, i) => {
-      const y = stepTop + sample.part * stepHeight
-      const h = (lanesTop - 14 - y) * sample.level
-      context.globalAlpha = 0.18
-      context.fillRect(i * dx, lanesTop - 14 - h, dx + 0.5, h)
-    })
-    context.globalAlpha = 1
-
-    context.strokeStyle = palette.ice
-    context.lineWidth = 2
-    context.lineJoin = 'round'
+    // линия: ступени сглажены, рябь от громкости постоянна для каждого отсчёта
+    let y = levelOf(samples[0].part)
+    let x = 0
     context.beginPath()
     samples.forEach((sample, i) => {
-      const y = stepTop + sample.part * stepHeight
-      if (i === 0) context.moveTo(0, y)
-      else context.lineTo(i * dx, y)
-      context.lineTo((i + 1) * dx, y)
+      y += (levelOf(sample.part) - y) * 0.3
+      const ripple =
+        Math.sin(i * 2.7) * Math.sin(i * 0.61 + 1) * sample.level * stage * 0.45
+      x = i * dx
+      if (i === 0) context.moveTo(x, y + ripple)
+      else context.lineTo(x, y + ripple)
     })
+    context.strokeStyle = palette.ice
+    context.lineWidth = 1.4
+    context.lineJoin = 'round'
+    context.shadowColor = palette.signal
+    context.shadowBlur = 6
     context.stroke()
+
+    // «сейчас»: светящаяся точка на конце линии
+    context.fillStyle = palette.ice
+    context.beginPath()
+    context.arc(x, y, 2.6, 0, Math.PI * 2)
+    context.fill()
+    context.shadowBlur = 0
 
     samples.forEach((sample, i) => {
       sample.on.forEach((on, row) => {
@@ -85,9 +104,9 @@ export function createTrace(palette) {
         context.fillStyle = palette.layers[row]
         context.fillRect(
           i * dx,
-          lanesTop + row * (laneHeight + 2),
-          dx + 0.5,
-          laneHeight
+          rasterTop + row * rowGap,
+          Math.max(1, dx * 0.6),
+          Math.max(1.5, rowGap * 0.55)
         )
       })
     })

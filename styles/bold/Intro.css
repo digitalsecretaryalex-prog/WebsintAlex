@@ -1,0 +1,112 @@
+/* Заставка (src/intro.js): тёмно-синий фон, стеклянная плитка, тонкое название.
+   Цвета по скриншоту-референсу; контраст текста к фону: 16:1 и 8.6:1 */
+.Intro {
+  --intro-bg: #0b1533;
+  --intro-text: #f2f5fb;
+  --intro-dim: #aab6d3;
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: var(--padding);
+  background-color: var(--intro-bg);
+  color: var(--intro-text);
+  transition:
+    opacity 600ms var(--ease),
+    visibility 0s linear 600ms;
+}
+
+.Intro.isLeaving {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.IntroBody {
+  display: flex;
+  align-items: center;
+  gap: clamp(24px, 5vw, 72px);
+}
+
+.IntroMark {
+  position: relative;
+  flex: none;
+  width: clamp(240px, 32vw, 440px);
+  aspect-ratio: 1;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.GlassCanvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.GlassFallback {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 40%;
+  height: 40%;
+  mask-size: contain;
+  mask-repeat: no-repeat;
+  mask-position: center;
+  -webkit-mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+}
+
+.IntroText {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 20px;
+}
+
+.IntroTitle {
+  font-family: 'Unbounded', system-ui, sans-serif;
+  font-size: clamp(40px, 6vw, 88px);
+  font-weight: 200;
+  line-height: 1;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.IntroLead {
+  max-width: 32ch;
+  margin-bottom: 12px;
+  color: var(--intro-dim);
+  font-family: 'Unbounded', system-ui, sans-serif;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.5;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+/* пока заставка открыта, кнопки вариантов не видны и не в фокусе */
+body.isIntro .Switches,
+body.isIntro .MiniConsole {
+  visibility: hidden;
+}
+
+@media (max-width: 760px) {
+  .IntroBody {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .IntroText {
+    align-items: center;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .Intro {
+    transition: none;
+  }
+}

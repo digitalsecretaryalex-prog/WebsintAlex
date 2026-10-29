@@ -52,38 +52,35 @@ body.isPanelHidden .Breath {
   top: 50%;
 }
 
-/* Гипнограмма: стеклянная карточка внизу свободной зоны */
+/* Гипнограмма: тонкая лента над растром, на всю его ширину */
 .Trace {
-  grid-area: 2 / 1;
-  align-self: end;
-  justify-self: center;
   display: flex;
   align-items: center;
-  gap: 12px;
-  width: min(520px, 100%);
-  margin: 0;
-  padding: 10px 10px 10px 18px;
-  border-radius: 28px;
-  border: var(--hair) solid var(--color-hair-dim);
-  background-color: rgba(3, 6, 13, 0.6);
-  backdrop-filter: blur(var(--blur));
+  gap: 10px;
+  height: 46px;
+  margin: 0 0 10px;
 }
 
 .Trace canvas {
   flex: 1;
   min-width: 0;
-  height: 96px;
+  height: 100%;
 }
 
 .TraceSave {
   display: grid;
   flex: none;
   place-items: center;
-  width: 44px;
-  height: 44px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   border: var(--hair) solid var(--color-hair);
+  background-color: rgba(3, 6, 13, 0.55);
   color: var(--color-ice);
+}
+
+.TraceSave .Icon {
+  --icon: 18px;
 }
 
 @media (hover: hover) {

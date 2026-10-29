@@ -36,6 +36,10 @@ export const icons = {
     '<circle cx="6" cy="7" r="2.4"/><circle cx="17" cy="6" r="2.4"/><circle cx="11.5" cy="12" r="2.4"/><circle cx="6" cy="17.5" r="2.4"/><circle cx="17.5" cy="17" r="2.4"/>',
   cascade:
     '<circle cx="5" cy="12" r="2.4"/><circle cx="12" cy="6" r="2.4"/><circle cx="12" cy="18" r="2.4"/><circle cx="19.5" cy="12" r="2.4"/><path d="M7 10.6l3-2.4M7 13.4l3 2.4M14 7.5l3.5 2.8M14 16.5l3.5-2.8"/>',
+  // тоннель: кольца уходят вглубь, по оси цепь из двух клеток
+  tunnel:
+    '<circle cx="12" cy="12" r="9.5" opacity="0.5"/><circle cx="12" cy="12" r="6" opacity="0.75"/><circle cx="12" cy="12" r="1.6" fill="currentColor"/><path d="M12 13.6v4.4"/>',
+  wave: '<path d="M2 15c3-5 6-5 9 0s6 5 11-2"/><path d="M2 20c3-3 6-3 9 0s6 3 11-1" opacity="0.6"/><circle cx="16" cy="6" r="1.6" fill="currentColor"/>',
 
   panelHide: '<path d="M6 8l6 6 6-6"/><path d="M4 19h16"/>',
   panelShow: '<path d="M6 14l6-6 6 6"/><path d="M4 19h16"/>',
@@ -53,9 +57,10 @@ export const icons = {
     '<circle cx="5" cy="12" r="2"/><circle cx="19" cy="6" r="2"/><circle cx="19" cy="18" r="2"/><path d="M7 11l10-4"/><path d="M7 13l3 1.4M14 16l3 1"/>',
   score:
     '<path d="M3 7h18M3 12h18M3 17h18"/><circle cx="8" cy="12" r="2.2"/><circle cx="15" cy="17" r="2.2"/>',
-  record: '<circle cx="12" cy="12" r="5.5"/>',
   trace: '<path d="M3 6h5v4h4v5h3v-3h6"/><path d="M3 20h18"/>',
   save: '<path d="M12 4v11M7 10l5 5 5-5"/><path d="M5 20h14"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>',
+  minus: '<path d="M5 12h14"/>',
   variants:
     '<rect x="4" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5"/><circle cx="16.75" cy="16.75" r="3.25"/>'
 }

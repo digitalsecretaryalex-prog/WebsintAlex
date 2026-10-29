@@ -410,8 +410,9 @@ export function createPartButtons(parts, onSelect) {
 export function createIconButton(className, icon, label, onClick) {
   const element = createToggle(className, icon, label, onClick)
   element.removeAttribute('aria-pressed')
+  // меняется только значок: слои металла (?ui=metal) остаются
   function setIcon(name, nextLabel) {
-    element.replaceChildren(createIcon(name))
+    element.querySelector('.Icon').replaceWith(createIcon(name))
     element.setAttribute('aria-label', nextLabel)
   }
   return { element, setIcon }
@@ -484,4 +485,113 @@ export function createIdeaSwitch(ideas, onToggle) {
     buttons[id].style.setProperty('--progress', value.toFixed(3))
   }
   return { element, setState, setProgress, buttons }
+}
+
+// Шаговый регулятор для скрытой панели: крупное значение и кнопки ±.
+// Шаг виден и одинаков: клик, удержание (повтор) или стрелки.
+// PageUp и PageDown: пять шагов, Home и End: край диапазона.
+export function createStepper(stepper, onChange) {
+  const { label, unit, spoken, icon, min, max, step } = stepper
+  let value = stepper.value
+  const element = document.createElement('div')
+  element.className = 'Stepper'
+
+  const display = document.createElement('div')
+  display.className = 'StepperValue'
+  display.tabIndex = 0
+  display.setAttribute('role', 'slider')
+  display.setAttribute('aria-label', label)
+  display.setAttribute('aria-valuemin', min)
+  display.setAttribute('aria-valuemax', max)
+  const number = document.createElement('span')
+  number.className = 'StepperNumber'
+  const units = document.createElement('span')
+  units.className = 'StepperUnit'
+  units.textContent = unit
+  const track = document.createElement('span')
+  track.className = 'StepperTrack'
+  track.setAttribute('aria-hidden', 'true')
+  display.append(createIcon(icon), number, units, track)
+
+  const minus = '\u2212'
+  // spoken: три формы для 1, 2–4 и 5–20: «удар», «удара», «ударов»
+  function words(next) {
+    const n = Math.abs(Math.round(next)) % 100
+    const last = n % 10
+    if (n > 10 && n < 20) return spoken[2]
+    if (last === 1) return spoken[0]
+    if (last > 1 && last < 5) return spoken[1]
+    return spoken[2]
+  }
+
+  function format(next) {
+    const rounded = Math.round(next)
+    return rounded < 0 ? `${minus}${-rounded}` : String(rounded)
+  }
+
+  function render() {
+    number.textContent = format(value)
+    display.setAttribute('aria-valuenow', Math.round(value))
+    display.setAttribute('aria-valuetext', `${format(value)} ${words(value)}`)
+    track.style.setProperty('--fill', (value - min) / (max - min))
+  }
+
+  function setValue(next, isSilent) {
+    const clamped = Math.min(max, Math.max(min, next))
+    if (clamped === value && !isSilent) return
+    value = clamped
+    render()
+    if (!isSilent) onChange(value)
+  }
+
+  // кнопка: шаг сразу, при удержании повтор, пока палец на кнопке
+  function stepButton(direction) {
+    const sign = direction > 0 ? 'плюс' : 'минус'
+    const button = document.createElement('button')
+    button.type = 'button'
+    button.className = 'StepperButton'
+    button.setAttribute('aria-label', `${label}: ${sign} ${step} ${unit}`)
+    button.appendChild(createIcon(direction > 0 ? 'plus' : 'minus'))
+    let timer = 0
+    const stop = () => clearTimeout(timer)
+    const repeat = (delay) => {
+      setValue(Math.round(value) + direction * step)
+      timer = setTimeout(() => repeat(110), delay)
+    }
+    button.addEventListener('pointerdown', (event) => {
+      if (event.button !== 0) return
+      button.setPointerCapture(event.pointerId)
+      repeat(420)
+    })
+    button.addEventListener('pointerup', stop)
+    button.addEventListener('pointercancel', stop)
+    button.addEventListener('lostpointercapture', stop)
+    // с клавиатуры: Enter и пробел дают один шаг
+    button.addEventListener('click', (event) => {
+      if (event.detail === 0) setValue(Math.round(value) + direction * step)
+    })
+    return button
+  }
+
+  display.addEventListener('keydown', (event) => {
+    const steps = {
+      ArrowUp: 1,
+      ArrowRight: 1,
+      ArrowDown: -1,
+      ArrowLeft: -1,
+      PageUp: 5,
+      PageDown: -5
+    }
+    if (event.code in steps)
+      setValue(Math.round(value) + steps[event.code] * step)
+    else if (event.code === 'Home') setValue(min)
+    else if (event.code === 'End') setValue(max)
+    else return
+    event.preventDefault()
+    event.stopPropagation()
+  })
+
+  element.append(stepButton(1), display, stepButton(-1))
+  render()
+  return { element, setValue, getValue: () => value }
 }

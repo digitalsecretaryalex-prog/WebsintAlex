@@ -144,7 +144,10 @@ export function createAtmosphere(scene, ref, pixel) {
     seeds[i] = Math.random()
   }
   const geometry = new THREE.BufferGeometry()
-  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3))
+  geometry.setAttribute(
+    'position',
+    new THREE.Float32BufferAttribute(positions, 3)
+  )
   geometry.setAttribute('size', new THREE.Float32BufferAttribute(sizes, 1))
   geometry.setAttribute('seed', new THREE.Float32BufferAttribute(seeds, 1))
   const moteUniforms = {
