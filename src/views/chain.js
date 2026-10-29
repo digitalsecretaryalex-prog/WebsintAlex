@@ -260,7 +260,7 @@ export function createChain({ tints, rest, reducedMotion }) {
       chainPosition(k + 1, n.next)
       n.next.z += neurons[slotOf(k + 1)].scale * 1.3
       n.grow = 1 - smoothstep(d, 10, 19)
-      n.age = time - n.fired
+      n.age = reducedMotion ? Math.max(time - n.fired, 0.6) : time - n.fired
       n.fade = smoothstep(d, -0.4, 1.6) * (1 - smoothstep(d, 26, 30))
       n.impulse = k === index ? impulse : -1
       n.alive = 0.75 + 0.25 * look.wake
@@ -286,7 +286,7 @@ export function createChain({ tints, rest, reducedMotion }) {
       )
       n.next.copy(neurons[slotOf(k)].center)
       n.grow = 1 - smoothstep(d, 16, 26)
-      n.age = time - n.fired
+      n.age = reducedMotion ? Math.max(time - n.fired, 0.6) : time - n.fired
       n.fade = smoothstep(d, -1, 2) * (1 - smoothstep(d, 34, 40))
       n.impulse =
         !reducedMotion && n.age < SIGNAL_TIME

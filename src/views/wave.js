@@ -150,6 +150,8 @@ uniform float uWave;
 uniform float uSize;
 uniform float uLight;
 uniform float uWake;
+// 0 при prefers-reduced-motion: свет меняется, форма не дышит
+uniform float uMotion;
 uniform float uOpacity;
 uniform vec3 uColLow;
 uniform vec3 uColHigh;
@@ -197,7 +199,7 @@ void main() {
     // круг от входа дендритов по мембране, как кольца от курсора в эталоне
     float fromBack = acos(clamp(dir.z, -1.0, 1.0));
     float ripple = exp(-pow((fromBack - (age - 0.18) * 9.0) / 0.3, 2.0)) * step(0.18, age) * exp(-age * 1.2);
-    float r = 1.0 + wn * 0.05 * uWave + ripple * 0.16 + flare * 0.1 + look.z * 0.06;
+    float r = 1.0 + wn * 0.05 * uWave + (ripple * 0.16 + flare * 0.1 + look.z * 0.06) * uMotion;
     // рождение: лист точек под телом сворачивается в шар
     shown = smoothstep(0.0, 0.5, grow);
     float spread = aTube.x * 3.14159 * 0.9;
@@ -213,7 +215,7 @@ void main() {
     wn = hills(vec3(w * 0.6 + seed, along * 0.9, seed), uStream * 0.3);
     float wave = exp(-pow((order - front) * 6.0, 2.0)) * step(age, 0.45);
     float width = aTube.y * 1.8 * scale;
-    float lift = (wn * 0.05 + wave * 0.5) * scale * shown;
+    float lift = (wn * 0.05 + wave * 0.5 * uMotion) * scale * shown;
     vec3 base = center + position * scale * shown;
     world = base + aSide1 * w * width + aSide2 * lift;
     glow = wave + flare * (1.0 - order) * 0.6 + look.z * (1.0 - order) * 0.5;
@@ -279,6 +281,7 @@ export function createWave({ renderer, colors, reducedMotion, pointer }) {
     uSize: { value: 1.15 },
     uLight: { value: 1 },
     uWake: { value: 0 },
+    uMotion: { value: reducedMotion ? 0 : 1 },
     // точек меньше, чем в листе эталона, поэтому каждая плотнее
     uOpacity: { value: REF.opacity * 2.2 },
     uColLow: { value: hexToVec3(REF.low) },

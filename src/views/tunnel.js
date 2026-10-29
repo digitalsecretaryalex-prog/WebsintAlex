@@ -160,6 +160,8 @@ uniform float uRoll;
 uniform float uSize;
 uniform float uLight;
 uniform float uWake;
+// 0 при prefers-reduced-motion: свет меняется, форма не дышит
+uniform float uMotion;
 uniform float uOpacity;
 uniform float uKick;
 uniform vec3 uColLow;
@@ -239,7 +241,7 @@ void main() {
   angle += jitterAngle + ambientSwirl * uSwirl + uRoll * (part < 0.5 ? 1.0 : 0.35);
   // до рождения точки ходят по широкой спирали
   angle += (1.0 - shown) * 6.0;
-  float r = radius * (1.0 - wn * 0.07) * (1.0 + swell) * (1.0 + uKick * 0.12 * (1.0 - order));
+  float r = radius * (1.0 - wn * 0.07) * (1.0 + swell * uMotion) * (1.0 + uKick * 0.12 * (1.0 - order));
   r = mix(r * 3.0 + scale * 0.6, r, shown);
   vec3 dir = side1 * sin(angle) + side2 * cos(angle);
   vec3 world = base + dir * r;
@@ -286,6 +288,7 @@ export function createTunnel({ renderer, colors, reducedMotion, pointer }) {
     uSize: { value: 1.25 },
     uLight: { value: 1 },
     uWake: { value: 0 },
+    uMotion: { value: reducedMotion ? 0 : 1 },
     uOpacity: { value: REF.opacity * 0.6 },
     uKick: { value: 0 },
     uColLow: { value: hexToVec3(REF.low) },
