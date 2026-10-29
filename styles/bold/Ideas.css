@@ -1,4 +1,4 @@
-/* Идеи: круг дыхания, гипнограмма, состояния кнопок партитуры и записи */
+/* Идеи: круг дыхания, гипнограмма, кольцо кнопки партитуры */
 
 .IdeaButton {
   --progress: 0;
@@ -21,16 +21,6 @@
     #000 calc(100% - 2px)
   );
   pointer-events: none;
-}
-
-.IdeaButton[data-idea='record'].isOn {
-  border-color: var(--color-kick);
-  background-color: var(--color-kick);
-  box-shadow: var(--glow) rgba(214, 112, 102, 0.5);
-}
-
-.IdeaButton[data-idea='record'].isOn svg {
-  fill: currentColor;
 }
 
 /* Дыхание: круг в свободной зоне над панелью, без панели в центре экрана */

@@ -434,26 +434,6 @@ export function getBarPosition() {
   return transport.ticks / (transport.PPQ * 4)
 }
 
-// Запись сета с выхода лимитера: то же, что слышно, без микрофона.
-// Формат выбирает браузер: webm в Chrome и Firefox, mp4 в Safari.
-let recorder = null
-export function canRecord() {
-  return Tone.Recorder.supported
-}
-
-export async function startRecording() {
-  await ensureStarted()
-  if (!recorder) {
-    recorder = new Tone.Recorder()
-    nodes.master.limiter.connect(recorder)
-  }
-  await recorder.start()
-}
-
-export function stopRecording() {
-  return recorder.stop()
-}
-
 export function getLevels() {
   if (!nodes) return null
   const levels = { master: nodes.master.meter.getValue() }

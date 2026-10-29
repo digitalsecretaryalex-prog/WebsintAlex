@@ -1,6 +1,6 @@
 // Идеи поверх инструмента. Три усиливают высказывание сета:
-// дыхание, угасание связей, партитура. Две дают сету жизнь после игры:
-// запись в файл и гипнограмма. Включаются отдельно, выбор хранится в адресе.
+// дыхание, угасание связей, партитура. Гипнограмма оставляет след сета
+// после игры. Включаются отдельно, выбор хранится в адресе.
 import * as audio from './audio.js'
 import { createIdeaSwitch, createIconButton } from './controls.js'
 import { createBreath } from './breath.js'
@@ -17,10 +17,9 @@ export const IDEAS = [
     label: 'Угасание связей: к части 4 между шарами остаётся пятая часть связей'
   },
   { id: 'score', label: 'Партитура: сет «Спуск» играет сам, 64 такта' },
-  { id: 'record', label: 'Запись сета в файл' },
   { id: 'trace', label: 'Гипнограмма сета' }
 ]
-// партитура и запись не сохраняются: это действия, а не режимы
+// партитура не сохраняется: это действие, а не режим
 const SAVED = ['breath', 'prune', 'trace']
 
 function download(blob, name) {
@@ -59,8 +58,7 @@ export function initIdeas({ screen, instrument, palette, actions }) {
     () => switcher.setState('score', score.isRunning())
   )
 
-  const ideas = IDEAS.filter(({ id }) => id !== 'record' || audio.canRecord())
-  const switcher = createIdeaSwitch(ideas, toggle)
+  const switcher = createIdeaSwitch(IDEAS, toggle)
 
   // сет всегда с начала: стоп, часть 1 сразу, старт
   async function startScore() {
@@ -70,26 +68,10 @@ export function initIdeas({ screen, instrument, palette, actions }) {
     await actions.togglePlay()
   }
 
-  async function toggleRecording(isOn) {
-    switcher.setState('record', isOn)
-    document.body.classList.toggle('isRecording', isOn)
-    if (isOn) {
-      await audio.startRecording()
-      return
-    }
-    const blob = await audio.stopRecording()
-    const extension = blob.type.includes('mp4') ? 'm4a' : 'webm'
-    download(blob, `neurosynth-set.${extension}`)
-  }
-
   function toggle(id, isOn) {
     if (id === 'score') {
       if (isOn) startScore()
       else score.cancel()
-      return
-    }
-    if (id === 'record') {
-      toggleRecording(isOn)
       return
     }
     if (isOn) active.add(id)
