@@ -3,7 +3,6 @@
 import * as THREE from 'three'
 import { createSpikes } from './views/spikes.js'
 import { createBackdrop, BACKGROUNDS } from './views/background.js'
-import { createNetwork } from './views/network.js'
 import {
   createFlight,
   createStream,
@@ -12,7 +11,6 @@ import {
 } from './views/swarm.js'
 
 const CREATE = {
-  network: createNetwork,
   flight: createFlight,
   stream: createStream,
   field: createField,
@@ -32,25 +30,6 @@ const PART_LOOK = [
 
 function lerp(from, to, amount) {
   return from + (to - from) * amount
-}
-
-// Камера отходит так, чтобы объект halfX × halfY занял кадр.
-// isFull: сеть на весь экран, кадр сдвинут от контролов
-export function frameCamera(camera, width, height, isFull, halfX, halfY) {
-  camera.aspect = width / height
-  camera.updateProjectionMatrix()
-  const halfHeight = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2))
-  const halfWidth = halfHeight * camera.aspect
-  const distance = isFull
-    ? Math.max(halfX / (0.5 * halfWidth), halfY / (0.4 * halfHeight))
-    : Math.max(halfX / (0.7 * halfWidth), halfY / (0.88 * halfHeight))
-  camera.position.setLength(distance)
-  if (isFull) {
-    camera.setViewOffset(width, height, 0, height * 0.13, width, height)
-  } else {
-    camera.clearViewOffset()
-  }
-  return distance
 }
 
 function disposeScene(scene) {
@@ -158,7 +137,7 @@ export function initVisuals(container, palette, reducedMotion, mode, ground) {
     const { clientWidth, clientHeight } = container
     if (!clientWidth || !clientHeight || !view) return
     renderer.setSize(clientWidth, clientHeight, false)
-    view.resize(clientWidth, clientHeight, container.dataset.framing === 'full')
+    view.resize(clientWidth, clientHeight)
   }
   new ResizeObserver(resize).observe(container)
 
@@ -216,7 +195,7 @@ export function initVisuals(container, palette, reducedMotion, mode, ground) {
   }
 
   setBackground(BACKGROUNDS.includes(ground) ? ground : 'dust')
-  setMode(CREATE[mode] ? mode : 'network')
+  setMode(CREATE[mode] ? mode : 'field')
   requestAnimationFrame(frame)
 
   return { setState, pulse, setMode, setBackground, getMode: () => name }

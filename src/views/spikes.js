@@ -1,8 +1,6 @@
 // Модель активности нейронов: спайк вспыхивает, бежит волной и гаснет.
 // После спайка популяция слоя молчит REFRACTORY секунд.
-import * as THREE from 'three'
-
-export const MAX_SPIKES = 16
+const MAX_SPIKES = 16
 const REFRACTORY = 0.14
 
 export function createSpikes(layerCount) {
@@ -33,68 +31,3 @@ export function createSpikes(layerCount) {
 
   return { fire, update, spikes, now: () => time }
 }
-
-// Общие uniforms и GLSL для всех режимов: свет от спайков в точке p
-export function createSpikeUniforms() {
-  return {
-    uSpikeOrigin: {
-      value: Array.from({ length: MAX_SPIKES }, () => new THREE.Vector3())
-    },
-    uSpikeColor: {
-      value: Array.from({ length: MAX_SPIKES }, () => new THREE.Vector3())
-    },
-    uSpikeAge: { value: new Array(MAX_SPIKES).fill(-1) },
-    uSpikeStrength: { value: new Array(MAX_SPIKES).fill(0) },
-    uSpikeSide: { value: new Array(MAX_SPIKES).fill(0) },
-    uSpikeSeed: { value: new Array(MAX_SPIKES).fill(0) },
-    uSpeed: { value: 1 },
-    uDecay: { value: 0.8 },
-    uWidth: { value: 0.12 }
-  }
-}
-
-// origin(layer, side) возвращает центр популяции в координатах режима
-export function writeSpikeUniforms(uniforms, model, origin, colors) {
-  const now = model.now()
-  for (let i = 0; i < MAX_SPIKES; i++) {
-    const spike = model.spikes[i]
-    if (!spike) {
-      uniforms.uSpikeAge.value[i] = -1
-      continue
-    }
-    uniforms.uSpikeOrigin.value[i].copy(origin(spike.layer, spike.side))
-    const color = colors[spike.layer]
-    uniforms.uSpikeColor.value[i].set(color.r, color.g, color.b)
-    uniforms.uSpikeAge.value[i] = now - spike.born
-    uniforms.uSpikeStrength.value[i] = spike.strength
-    // side: от тела клетки или к нему, seed: какие ветки зажжёт спайк
-    if (uniforms.uSpikeSide) {
-      uniforms.uSpikeSide.value[i] = spike.side
-      uniforms.uSpikeSeed.value[i] = (spike.born * 7.31) % 1
-    }
-  }
-}
-
-export const SPIKE_GLSL = /* glsl */ `
-uniform vec3 uSpikeOrigin[${MAX_SPIKES}];
-uniform vec3 uSpikeColor[${MAX_SPIKES}];
-uniform float uSpikeAge[${MAX_SPIKES}];
-uniform float uSpikeStrength[${MAX_SPIKES}];
-uniform float uSpeed;
-uniform float uDecay;
-uniform float uWidth;
-
-vec3 spikeLight(vec3 p) {
-  vec3 sum = vec3(0.0);
-  for (int i = 0; i < ${MAX_SPIKES}; i++) {
-    float age = uSpikeAge[i];
-    if (age < 0.0) continue;
-    float d = distance(p, uSpikeOrigin[i]);
-    float front = (d - age * uSpeed) / uWidth;
-    float flash = exp(-d * d / (uWidth * uWidth)) * exp(-age * 10.0);
-    float wave = exp(-front * front);
-    sum += uSpikeColor[i] * uSpikeStrength[i] * (wave + flash) * exp(-age / uDecay);
-  }
-  return sum;
-}
-`
