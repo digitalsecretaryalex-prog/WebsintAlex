@@ -59,6 +59,17 @@ function notify(event, time) {
   Tone.getDraw().schedule(() => listener({ ...event, time }), time + delay)
 }
 
+// Под тяжёлой графикой Tone изредка отдаёт шаг дважды с тем же временем.
+// Моно-синт не может стартовать дважды в одно время и падает с ошибкой,
+// поэтому повтор пропускается. Аккорды пэда и мелодии не проверяются:
+// там ноты в одно время законно
+const lastStart = {}
+function isRepeat(key, time) {
+  if (time <= (lastStart[key] ?? -1)) return true
+  lastStart[key] = time
+  return false
+}
+
 // фильтр → эхо → реверб → канал
 function initChain(layer, output) {
   const filter = new Tone.Filter(layer.filter)
@@ -80,6 +91,7 @@ function initKick(output) {
       const layerState = state.kick
       if (!layerState.isOn) return
       if (!patterns.kick[layerState.variation][step]) return
+      if (isRepeat('kick', time)) return
       synth.triggerAttackRelease(kick.note, '8n', time, kick.velocity)
       notify({ type: 'note', layer: 'kick', velocity: kick.velocity }, time)
     },
@@ -97,7 +109,7 @@ function initPerc(output) {
   const sequence = new Tone.Sequence(
     (time, step) => {
       const layerState = state.perc
-      if (!layerState.isOn) return
+      if (!layerState.isOn || isRepeat('perc', time)) return
       const variation = perc.variations[layerState.variation]
       if (patterns.perc[layerState.variation][step]) {
         synth.triggerAttackRelease('16n', time, perc.velocity)
@@ -118,10 +130,12 @@ function initPerc(output) {
 function initPartLayer(layer, synth, output) {
   const chain = initChain(layer, output)
   synth.connect(chain.filter)
+  const isPoly = synth instanceof Tone.PolySynth
   const variationParts = layer.variations.map((variation, index) => {
     const part = new Tone.Part((time, note) => {
       const layerState = state[layer.id]
       if (!layerState.isOn || layerState.variation !== index) return
+      if (!isPoly && isRepeat(layer.id, time)) return
       synth.triggerAttackRelease(
         note.noteName,
         note.duration,
@@ -178,6 +192,7 @@ function initTexture(output) {
       const layerState = state.texture
       const chance = texture.variations[layerState.variation].crackle
       if (layerState.isOn && Math.random() < chance) {
+        if (isRepeat('texture', time)) return
         const velocity = quiet + Math.random() * (loud - quiet)
         crackle.triggerAttackRelease('64n', time, velocity)
         notify({ type: 'note', layer: 'texture', velocity }, time)

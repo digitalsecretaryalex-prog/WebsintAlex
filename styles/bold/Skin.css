@@ -1,9 +1,9 @@
 /* Общее для вариантов ?ui=glass и ?ui=liquid.
    1. Жидкий металл (src/liquid.js): холст металла лежит под элементом
       целиком, поверх него грань (::after), отступ грани = толщина кольца.
-   2. Детали как у железного синтезатора: подпись значения под ручкой,
-      шкала из 11 рисок вокруг ручки, шкала у движка, уровень лесенкой
-      светодиодов. Цвета рисок и подписей задают Glass.css и Liquid.css */
+   2. Детали как у железного синтезатора: шкала из 11 рисок вокруг ручки,
+      шкала у движка, уровень лесенкой светодиодов. Цвета рисок задают
+      Glass.css и Liquid.css */
 .hasLiquid {
   --ring: 2.5px;
   --face: linear-gradient(180deg, #202020 0%, #000000 100%);
@@ -85,41 +85,8 @@
   gap: 9px;
 }
 
-:is(.isGlass, .isLiquid) .LayerKnobs .WithIcon {
-  gap: 20px;
-}
-
 :is(.isGlass, .isLiquid) .LayerKnobs .Icon {
   --icon: 13px;
-}
-
-/* у малой ручки выхода подпись между ручкой и значком */
-:is(.isGlass, .isLiquid) .Master .WithIcon:has(.Knob:not(.isLarge)) {
-  gap: 20px;
-}
-
-.KnobReadout {
-  position: absolute;
-  top: calc(100% + 5px);
-  left: 50%;
-  z-index: 2;
-  transform: translateX(-50%);
-  color: var(--readout);
-  font-size: 10px;
-  font-weight: 600;
-  line-height: 1;
-  white-space: nowrap;
-  font-variant-numeric: tabular-nums;
-}
-
-:is(.isGlass, .isLiquid) .KnobReadout {
-  display: block;
-}
-
-:is(.isGlass, .isLiquid) .Master .Knob.isLarge .KnobReadout {
-  top: 50%;
-  transform: translate(-50%, 70%);
-  font-size: 13px;
 }
 
 /* 11 рисок на дуге 270°, как ход самой ручки (KNOB_ANGLE = 135) */

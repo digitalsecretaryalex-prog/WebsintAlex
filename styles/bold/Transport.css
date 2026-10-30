@@ -159,6 +159,13 @@
   transition: transform 160ms var(--ease);
 }
 
+/* металл ставит кнопкам position: relative; сброс должен остаться вне ряда
+   частей, иначе ряд короче и часть 4 уходит с оси кольца */
+.ResetButton.hasLiquid,
+.ResetButton.isMetal {
+  position: absolute;
+}
+
 .PlayButton:active {
   transform: scale(0.94);
 }

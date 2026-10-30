@@ -49,24 +49,6 @@ function formatValue(value, knob) {
   return `${Math.round(value * 100)} %`
 }
 
-// Короткая подпись под ручкой: видно значение, не наводя курсор
-function shortValue(value, knob) {
-  if (knob.unit === 'Гц')
-    return value >= 1000
-      ? `${(value / 1000).toFixed(1)} кГц`
-      : `${Math.round(value)} Гц`
-  if (knob.unit === 'уд/мин') return `${Math.round(value)}`
-  if (knob.unit === 'фильтр') {
-    if (Math.abs(value) < 0.02) return 'открыт'
-    return `${value < 0 ? '−' : '+'}${Math.round(Math.abs(value) * 100)} %`
-  }
-  if (knob.unit === 'панорама') {
-    if (Math.abs(value) < 0.02) return 'центр'
-    return `${value < 0 ? 'Л' : 'П'} ${Math.round(Math.abs(value) * 100)}`
-  }
-  return `${Math.round(value * 100)} %`
-}
-
 function arcPath(from, to) {
   const radius = 17
   const point = (angle) => {
@@ -93,11 +75,6 @@ export function createKnob(knob, onChange) {
       <path class="KnobValue"/>
       <line class="KnobMark" x1="24" y1="24" x2="24" y2="12"/>
     </svg>`
-  // подпись значения: в базовом виде скрыта, в вариантах стекла и металла видна
-  const readout = document.createElement('span')
-  readout.className = 'KnobReadout'
-  readout.setAttribute('aria-hidden', 'true')
-  element.appendChild(readout)
   const valuePath = element.querySelector('.KnobValue')
   const mark = element.querySelector('.KnobMark')
 
@@ -119,7 +96,6 @@ export function createKnob(knob, onChange) {
     const value = fromNorm(norm, knob)
     element.setAttribute('aria-valuenow', Math.round(value * 100) / 100)
     element.setAttribute('aria-valuetext', formatValue(value, knob))
-    readout.textContent = shortValue(value, knob)
     draw()
     if (!isSilent) onChange(value)
   }

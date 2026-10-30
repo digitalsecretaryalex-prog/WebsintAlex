@@ -58,8 +58,3 @@
 .Knob.isLarge .KnobMark {
   stroke-width: 1;
 }
-
-/* подпись значения видна только в вариантах стекла и металла */
-.KnobReadout {
-  display: none;
-}

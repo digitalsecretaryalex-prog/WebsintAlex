@@ -145,21 +145,6 @@
   }
 }
 
-/* отдельная кнопка с подписью: размер из исходника */
-.MetalButton {
-  display: inline-grid;
-  place-items: center;
-  width: 142px;
-  height: 46px;
-}
-
-.MetalLabel {
-  font-size: 14px;
-  font-weight: 400;
-  white-space: nowrap;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
-}
-
 .isMetal:focus-visible {
   outline: 2px solid var(--color-focus);
   outline-offset: 4px;

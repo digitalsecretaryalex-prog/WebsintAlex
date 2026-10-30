@@ -1,32 +1,19 @@
-// Жидкий металл на десятках элементов одним WebGL-контекстом.
-// Шейдер liquid metal из @paper-design/shaders с параметрами кнопки
-// liquid-metal-button рисуется в две плитки на скрытом холсте: круг (ручки,
-// круглые кнопки) и капсулу (кнопки-капсулы). Каждый элемент копирует свою
-// плитку в маленький холст под собой, повернув её на свой угол, чтобы
-// металл не повторялся одинаково. Браузер держит около 16 контекстов,
-// поэтому по контексту на кнопку не выйдет.
-// Металл течёт медленно, пока звук не играет, и быстрее со звуком.
+// Металл на десятках элементов одним WebGL-контекстом (?ui=glass и
+// ?ui=liquid). Шейдер liquid metal из @paper-design/shaders с теми же
+// параметрами, что у кнопок src/metal.js, рисуется в две плитки на скрытом
+// холсте: круг (ручки, круглые кнопки) и капсулу (кнопки-капсулы). Каждый
+// элемент копирует свою плитку в маленький холст под собой, повернув её
+// на свой угол, чтобы металл не повторялся одинаково. Браузер держит около
+// 16 контекстов, поэтому по контексту на кнопку не выйдет.
+// Металл стоит: копии рисуются, когда элемент появился или поменял
+// размер (ResizeObserver), а не каждый кадр.
+import { METAL_UNIFORMS, METAL_FRAME } from './metal.js'
 
-const UNIFORMS = {
-  u_repetition: 4,
-  u_softness: 0.5,
-  u_shiftRed: 0.3,
-  u_shiftBlue: 0.3,
-  u_distortion: 0,
-  u_contour: 0,
-  u_angle: 45,
-  u_scale: 8,
-  u_shape: 1,
-  u_offsetX: 0.1,
-  u_offsetY: -0.1
-}
 // плитки: x, y, ширина, высота в пикселях скрытого холста
 const TILES = {
   round: [0, 0, 192, 192],
   pill: [0, 192, 288, 96]
 }
-// металл течёт медленно, 24 кадров хватает
-const FPS = 24
 
 let field = null
 
@@ -70,67 +57,61 @@ async function start() {
   gl.enableVertexAttribArray(position)
   gl.vertexAttribPointer(position, 2, gl.FLOAT, false, 0, 0)
   const at = (name) => gl.getUniformLocation(program, name)
-  Object.entries(UNIFORMS).forEach(([name, value]) =>
+  Object.entries(METAL_UNIFORMS).forEach(([name, value]) =>
     gl.uniform1f(at(name), value)
   )
   gl.uniform1f(at('u_pixelRatio'), 1)
+  gl.uniform1f(at('u_time'), METAL_FRAME / 1000)
   gl.enable(gl.SCISSOR_TEST)
-  return { canvas, gl, time: at('u_time'), resolution: at('u_resolution') }
-}
-
-// Один кадр: обе плитки, потом копии во все элементы
-function draw(now) {
-  requestAnimationFrame(draw)
-  // без металла на странице шейдер не считается
-  if (!field.skins.length) return
-  if (document.hidden || now - field.last < 1000 / FPS) return
-  const dt = Math.min(0.1, (now - field.last) / 1000)
-  field.last = now
-  field.clock += dt * field.speed
-  const { gl } = field.engine
-  gl.uniform1f(field.engine.time, field.clock)
   gl.clearColor(0, 0, 0, 0)
+  // обе плитки один раз: металл не меняется
   Object.values(TILES).forEach(([x, y, w, h]) => {
     // у WebGL y снизу
-    const glY = field.engine.canvas.height - y - h
+    const glY = canvas.height - y - h
     gl.viewport(x, glY, w, h)
     gl.scissor(x, glY, w, h)
     gl.clear(gl.COLOR_BUFFER_BIT)
-    gl.uniform2f(field.engine.resolution, w, h)
+    gl.uniform2f(at('u_resolution'), w, h)
     gl.drawArrays(gl.TRIANGLES, 0, 6)
   })
-  field.skins.forEach((skin) => {
-    const { canvas, context, shape, turn } = skin
+  return canvas
+}
+
+// копии плиток во все элементы; размер холста по размеру элемента
+function draw() {
+  field.queued = false
+  field.skins.forEach(({ canvas, context, shape, turn }) => {
     const width = canvas.clientWidth
     const height = canvas.clientHeight
     if (!width || !height) return
     const scale = Math.min(window.devicePixelRatio || 1, 2)
-    const pixelWidth = Math.round(width * scale)
-    const pixelHeight = Math.round(height * scale)
-    if (canvas.width !== pixelWidth || canvas.height !== pixelHeight) {
-      canvas.width = pixelWidth
-      canvas.height = pixelHeight
-    }
+    canvas.width = Math.round(width * scale)
+    canvas.height = Math.round(height * scale)
     const [x, y, w, h] = TILES[shape]
-    context.clearRect(0, 0, pixelWidth, pixelHeight)
     context.save()
-    context.translate(pixelWidth / 2, pixelHeight / 2)
+    context.translate(canvas.width / 2, canvas.height / 2)
     // круг можно повернуть, капсулу только отразить
     if (shape === 'round') context.rotate(turn)
     else if (turn > Math.PI) context.scale(-1, 1)
     context.drawImage(
-      field.engine.canvas,
+      field.tiles,
       x,
       y,
       w,
       h,
-      -pixelWidth / 2,
-      -pixelHeight / 2,
-      pixelWidth,
-      pixelHeight
+      -canvas.width / 2,
+      -canvas.height / 2,
+      canvas.width,
+      canvas.height
     )
     context.restore()
   })
+}
+
+function redraw() {
+  if (!field.tiles || field.queued) return
+  field.queued = true
+  requestAnimationFrame(draw)
 }
 
 // Надеть металл на элемент: холст первым ребёнком, форма круг или капсула
@@ -140,18 +121,18 @@ export function addLiquidSkin(element, shape = 'round') {
   canvas.setAttribute('aria-hidden', 'true')
   element.prepend(canvas)
   element.classList.add('hasLiquid')
-  const skin = {
-    canvas,
-    context: canvas.getContext('2d'),
-    shape,
-    turn: Math.random() * Math.PI * 2
-  }
   if (!field) {
-    field = { skins: [], speed: 0.6, clock: 0, last: 0, engine: null }
+    field = {
+      skins: [],
+      tiles: null,
+      queued: false,
+      // спрятанный элемент (скрытая панель) получит металл, когда покажется
+      sizes: new ResizeObserver(() => redraw())
+    }
     start()
-      .then((engine) => {
-        field.engine = engine
-        requestAnimationFrame(draw)
+      .then((tiles) => {
+        field.tiles = tiles
+        redraw()
       })
       .catch((error) => {
         // без сети или WebGL2 кольцо рисует CSS
@@ -159,15 +140,11 @@ export function addLiquidSkin(element, shape = 'round') {
         document.body.classList.add('isLiquidFallback')
       })
   }
-  field.skins.push(skin)
-  return () => {
-    canvas.remove()
-    element.classList.remove('hasLiquid')
-    field.skins = field.skins.filter((other) => other !== skin)
-  }
-}
-
-// со звуком металл течёт быстрее, как у кнопки под курсором
-export function setLiquidSpeed(speed) {
-  if (field) field.speed = speed
+  field.skins.push({
+    canvas,
+    context: canvas.getContext('2d'),
+    shape,
+    turn: Math.random() * Math.PI * 2
+  })
+  field.sizes.observe(canvas)
 }

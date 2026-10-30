@@ -52,7 +52,7 @@ body {
   overflow: hidden;
 }
 
-/* текста в инструменте мало: значения скрытой панели и заставка */
+/* текста в инструменте мало: значения скрытой панели */
 body {
   font-family: 'Golos Text', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;

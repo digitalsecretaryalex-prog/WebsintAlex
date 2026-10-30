@@ -1,7 +1,7 @@
 /* Вариант «Жидкий металл» (?ui=liquid): чёрное железо, у каждой ручки и
    кнопки кольцо жидкого металла (src/liquid.js), как у liquid-metal-button.
    Цвет слоя живёт в светодиодах: шкала ручки, полоска капсулы, нажатый шаг,
-   лесенка уровня. Контраст подписи #b8bec6 к чёрному 10:1 */
+   лесенка уровня. Контраст значков #b8bec6 к чёрному 10:1 */
 body.isLiquid {
   --liquid-bg: #050507;
   --liquid-face: linear-gradient(180deg, #232326 0%, #000000 100%);
@@ -12,7 +12,6 @@ body.isLiquid {
   --color-screen: #050507;
   --color-focus: #ffffff;
   --tick: rgba(238, 241, 245, 0.32);
-  --readout: var(--liquid-label);
   --meter-off: rgba(255, 255, 255, 0.07);
   --meter-on: #9fb4ff;
   background-color: var(--liquid-bg);
@@ -56,18 +55,6 @@ body.isLiquid .Layer {
     inset 0 -1px 0 rgba(0, 0, 0, 0.6),
     0 24px 50px rgba(0, 0, 0, 0.6);
   backdrop-filter: blur(16px);
-}
-
-body.isLiquid .Layer::before {
-  content: '';
-  position: absolute;
-  top: 7px;
-  left: 30%;
-  right: 30%;
-  height: 2px;
-  border-radius: 1px;
-  background-color: var(--layer);
-  box-shadow: 0 0 10px var(--layer);
 }
 
 body.isLiquid .WithIcon {
@@ -132,10 +119,6 @@ body.isLiquid .Master .Knob.isLarge.hasLiquid {
   );
   border: 0;
   backdrop-filter: none;
-}
-
-body.isLiquid .Master .Knob.isLarge .KnobReadout {
-  color: var(--liquid-ink);
 }
 
 /* Движки: чёрный паз, хромовая ручка с риской посередине */

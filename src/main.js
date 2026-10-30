@@ -56,17 +56,13 @@ function knobDefault(layer, param) {
 
 const KNOB_UNITS = { filter: 'Гц', pan: 'панорама' }
 
-// Вид пульта (?ui=), переключается в «Вариантах» без перезагрузки.
-// base: как был; metal: главные кнопки в металле (src/metal.js, у кнопки
-// свой шейдер); glass и liquid: класс на body и металл на элементах
-// из списка, весь металл рисует один общий холст (src/liquid.js)
-const UI_LIST = [
-  { id: 'base', icon: 'uiBase', label: 'Пульт: обычный' },
-  { id: 'metal', icon: 'uiMetal', label: 'Пульт: главные кнопки в металле' },
-  { id: 'glass', icon: 'uiGlass', label: 'Пульт: стекло' },
-  { id: 'liquid', icon: 'uiLiquid', label: 'Пульт: всё в жидком металле' }
-]
+// Вид пульта из адреса (?ui=), по умолчанию жидкий металл.
+// liquid: металл на всех ручках и кнопках; glass: стеклянные плитки;
+// metal: металл только на главных кнопках (src/metal.js, у кнопки свой
+// шейдер); base: без металла. В glass и liquid весь металл рисует один
+// общий холст (src/liquid.js)
 const SKINS = {
+  base: [],
   metal: [
     ['.PlayButton'],
     ['.ResetButton'],
@@ -95,47 +91,25 @@ const SKINS = {
     ['.StepperButton', 'round']
   ]
 }
-const startUi = UI_LIST.some(({ id }) => id === params.get('ui'))
-  ? params.get('ui')
-  : 'base'
-let ui = startUi
-// функции, которые снимают металл текущего вида
-let undoUi = []
-let uiVersion = 0
-let liquid = null
+const ui = SKINS[params.get('ui')] ? params.get('ui') : 'liquid'
 
-function applyUi(next) {
-  const version = ++uiVersion
-  undoUi.forEach((undo) => undo())
-  undoUi = []
-  ui = next
+function initSkin() {
   document.body.classList.toggle('isGlass', ui === 'glass')
   document.body.classList.toggle('isLiquid', ui === 'liquid')
-  if (!SKINS[ui]) return
+  if (!SKINS[ui].length) return
   const skinModule =
     ui === 'metal' ? import('./metal.js') : import('./liquid.js')
-  skinModule.then((skin) => {
-    // пока модуль грузился, выбрали другой вид
-    if (version !== uiVersion) return
-    if (skin.setLiquidSpeed) liquid = skin
+  skinModule.then((skin) =>
     SKINS[ui].forEach(([selector, shape]) =>
-      document.querySelectorAll(selector).forEach((element) => {
-        undoUi.push(
+      document
+        .querySelectorAll(selector)
+        .forEach((element) =>
           ui === 'metal'
             ? skin.addMetalSkin(element)
             : skin.addLiquidSkin(element, shape)
         )
-      })
     )
-  })
-}
-
-function selectUi(next) {
-  applyUi(next)
-  const url = new URL(location.href)
-  if (next === 'base') url.searchParams.delete('ui')
-  else url.searchParams.set('ui', next)
-  history.replaceState(null, '', url)
+  )
 }
 
 function withIcon(control, icon) {
@@ -386,11 +360,9 @@ const VIEWS = [
 ]
 
 // Вид берётся из адреса (?view=field), чтобы ссылка открывала тот же вид
-// у вариантов свой вид по умолчанию: стекло синее, как тоннель
 function readView() {
   const view = new URLSearchParams(location.search).get('view')
-  const fallback = { glass: 'tunnel', liquid: 'wave' }[startUi] || 'field'
-  return VIEWS.some(({ id }) => id === view) ? view : fallback
+  return VIEWS.some(({ id }) => id === view) ? view : 'tunnel'
 }
 
 const BACKGROUND_LIST = [
@@ -414,7 +386,7 @@ function saveParam(name, value) {
 }
 
 // Варианты спрятаны за одной кнопкой: на экране остаётся минимум.
-// Ряды: виды нейронов и фон (появляются, когда загрузится 3D), вид пульта
+// Ряды видов нейронов и фона появляются, когда загрузится 3D
 function initSwitches() {
   switches = document.createElement('div')
   switches.className = 'Switches'
@@ -435,8 +407,7 @@ function initSwitches() {
     togglePanel
   )
   panelToggle.element.setAttribute('aria-pressed', 'false')
-  const uiSwitch = createViewSwitch(UI_LIST, startUi, selectUi, 'Вид пульта')
-  switches.append(toggle.element, panelToggle.element, uiSwitch.element)
+  switches.append(toggle.element, panelToggle.element)
   // поверх интерфейса: раскрытые ряды не уходят под капсулы
   document.body.appendChild(switches)
 }
@@ -466,8 +437,7 @@ function initScreen() {
         },
         'Фон'
       )
-      // ряды видов и фона встают перед рядом вида пульта
-      switches.lastChild.before(viewSwitch.element, groundSwitch.element)
+      switches.append(viewSwitch.element, groundSwitch.element)
     })
     .catch((error) => console.warn('3D-нейроны не загрузились', error))
 }
@@ -579,7 +549,6 @@ function updateStates() {
 function initKeyboard() {
   window.addEventListener('keydown', (event) => {
     if (event.repeat || event.metaKey || event.ctrlKey || event.altKey) return
-    if (document.body.classList.contains('isIntro')) return
     const isControl = event.target.closest('button, input, [role="slider"]')
     if (isControl && (event.code === 'Space' || event.code === 'Enter')) return
 
@@ -625,14 +594,6 @@ function updateLoop(now) {
   if (brain) {
     const playing = audio.isPlaying()
     const sounding = audio.isSounding()
-    // металл течёт быстрее, пока играет звук
-    liquid?.setLiquidSpeed(
-      matchMedia('(prefers-reduced-motion: reduce)').matches
-        ? 0
-        : sounding
-          ? 1
-          : 0.6
-    )
     const on = layers.map(
       (layer) => audio.getLayerState(layer.id).isOn && playing
     )
@@ -670,11 +631,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initLayers()
   initMaster()
   initMini()
-  applyUi(startUi)
+  initSkin()
   initKeyboard()
   requestAnimationFrame(updateLoop)
-  // заставка: ?intro=0 пропускает её
-  if (params.get('intro') !== '0') {
-    import('./intro.js').then(({ showIntro }) => showIntro())
-  }
 })

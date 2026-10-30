@@ -1,8 +1,7 @@
 /* Вариант «Стекло» (?ui=glass): светлые стеклянные плитки на тёмно-синем,
-   как плитка заставки; синие линии знака; металлические кольца у кнопок.
-   Цвета по скриншоту-референсу. Контраст: текст #13204a к плитке #e8edf7
-   14:1, приглушённый #47578a 6.4:1, синий #2f5fe0 4.7:1, подпись
-   #c9d4f2 к фону #0b1533 12:1 */
+   как стеклянная плитка; синие линии знака; металлические кольца у кнопок.
+   Контраст значков: #13204a к плитке #e8edf7 14:1, приглушённый #47578a
+   6.4:1, синий #2f5fe0 4.7:1, светлый #c9d4f2 к фону #0b1533 12:1 */
 body.isGlass {
   --glass-bg: #0b1533;
   --glass-plate: #e8edf7;
@@ -28,7 +27,6 @@ body.isGlass {
   --color-focus: #ffffff;
   /* на тёмном фоне: транспорт и выход */
   --tick: rgba(201, 212, 242, 0.45);
-  --readout: var(--glass-light);
   --meter-off: rgba(201, 212, 242, 0.14);
   --meter-on: #8fb0ff;
   background-color: var(--glass-bg);
@@ -49,7 +47,6 @@ body.isGlass .Screen::after {
 /* Капсулы слоёв: стеклянные плитки, блик сверху, призменная кромка в углах */
 body.isGlass .Layer {
   --tick: rgba(19, 32, 74, 0.32);
-  --readout: var(--glass-ink);
   --meter-off: rgba(19, 32, 74, 0.1);
   position: relative;
   gap: 10px;
@@ -205,7 +202,7 @@ body.isGlass .Master .Fader input::-webkit-slider-runnable-track {
   background-color: rgba(201, 212, 242, 0.35);
 }
 
-/* Металлические кнопки: светлая грань, синий значок, как у плитки заставки */
+/* Металлические кнопки: светлая грань, синий значок */
 body.isGlass .hasLiquid {
   --face: var(--glass-dome);
   color: var(--glass-blue);
@@ -257,10 +254,6 @@ body.isGlass .Master .Knob.isLarge.hasLiquid {
   );
   border: 0;
   backdrop-filter: none;
-}
-
-body.isGlass .Master .Knob.isLarge .KnobReadout {
-  color: var(--glass-ink);
 }
 
 body.isGlass .Master .Knob.isLarge .KnobValue {

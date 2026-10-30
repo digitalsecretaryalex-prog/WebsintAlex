@@ -43,15 +43,6 @@ export const icons = {
 
   panelHide: '<path d="M6 8l6 6 6-6"/><path d="M4 19h16"/>',
   panelShow: '<path d="M6 14l6-6 6 6"/><path d="M4 19h16"/>',
-  // вид пульта: обычная ручка, металлическое кольцо, стеклянная плитка
-  // с бликом, капля жидкого металла с волной
-  uiBase: '<circle cx="12" cy="12" r="7.5"/><path d="M12 12l-3.6-3.6"/>',
-  uiMetal:
-    '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><path d="M6.2 7.4l2 1.6" opacity="0.6"/>',
-  uiGlass:
-    '<rect x="4" y="4" width="16" height="16" rx="5"/><path d="M8 11l3-3M8 15l7-7" opacity="0.6"/>',
-  uiLiquid:
-    '<circle cx="12" cy="12" r="9"/><path d="M5 13.5c2.3-2 4.7 2 7 0s4.7-2 7 0" /><circle cx="12" cy="12" r="5" opacity="0.5"/>',
   // фоны
   dust: '<circle cx="6" cy="7" r="1"/><circle cx="14" cy="5" r="1"/><circle cx="19" cy="11" r="1"/><circle cx="9" cy="14" r="1"/><circle cx="16" cy="18" r="1"/><circle cx="5" cy="19" r="1"/>',
   calcium:
