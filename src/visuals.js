@@ -24,12 +24,11 @@ export const VIEW_NAMES = Object.keys(CREATE)
 export { BACKGROUNDS }
 
 // По частям сета: насыщенность, доля видимых точек, энергия
-// links: доля связей между шарами при «угасании связей»
 const PART_LOOK = [
-  { saturation: 1, density: 1, energy: 1, links: 1 },
-  { saturation: 0.7, density: 0.85, energy: 0.85, links: 0.65 },
-  { saturation: 0.4, density: 0.7, energy: 0.65, links: 0.4 },
-  { saturation: 0.15, density: 0.55, energy: 0.5, links: 0.2 }
+  { saturation: 1, density: 1, energy: 1 },
+  { saturation: 0.7, density: 0.85, energy: 0.85 },
+  { saturation: 0.4, density: 0.7, energy: 0.65 },
+  { saturation: 0.15, density: 0.55, energy: 0.5 }
 ]
 
 function lerp(from, to, amount) {
@@ -107,9 +106,7 @@ export function initVisuals(container, palette, reducedMotion, mode, ground) {
     sounding: false,
     // beat: позиция в тактах, пока звучит, иначе null
     beat: null,
-    panelHidden: false,
-    prune: false,
-    breath: null
+    panelHidden: false
   }
   const look = {
     alive: [0, 0, 0, 0, 0, 0],
@@ -117,7 +114,6 @@ export function initVisuals(container, palette, reducedMotion, mode, ground) {
     density: 1,
     energy: 0.5,
     dim: 1,
-    links: 1,
     // 0 сеть спит, 1 проснулась; просыпается быстрее, чем засыпает
     wake: 0
   }
@@ -139,6 +135,7 @@ export function initVisuals(container, palette, reducedMotion, mode, ground) {
     if (view) {
       view.dispose?.()
       disposeScene(view.scene)
+      if (view.underlay) disposeScene(view.underlay)
     }
     name = next
     view = CREATE[next]({ renderer, colors, reducedMotion, pointer })
@@ -185,7 +182,6 @@ export function initVisuals(container, palette, reducedMotion, mode, ground) {
       ease * 0.4
     )
     look.dim = lerp(look.dim, 1 - closed * 0.3, ease)
-    look.links = lerp(look.links, part.links, ease * 0.4)
     look.energy = lerp(
       look.energy,
       part.energy * (target.playing ? 0.45 + target.master * 0.55 : 0.35),
@@ -205,16 +201,24 @@ export function initVisuals(container, palette, reducedMotion, mode, ground) {
     spikes.update(dt, reducedMotion ? 0 : 0.8 * look.energy * look.wake, decay)
 
     view.update({ dt, time: now / 1000, target, look, speed, decay, spikes })
-    // свой фон у видов из эталонных сцен; остальные рисуются поверх общего
+    // у тоннеля и волны своя подложка из эталонов: фон рисуется поверх неё
+    // и идёт за камерой, как звёзды, иначе цепь улетела бы из фона
     renderer.clear()
-    if (!view.ownBackdrop) {
-      backdrop.update(
-        dt,
-        look,
-        (reducedMotion ? 0.15 : 1) * Math.max(0.08, look.wake)
-      )
-      renderer.render(backdrop.scene, view.camera)
+    if (view.underlay) {
+      renderer.render(view.underlay, view.camera)
+      backdrop.scene.background = null
+      backdrop.scene.position.copy(view.camera.position)
+    } else {
+      backdrop.scene.background = colors.screen
+      backdrop.scene.position.set(0, 0, 0)
     }
+    backdrop.update(
+      dt,
+      look,
+      (reducedMotion ? 0.15 : 1) * Math.max(0.08, look.wake),
+      view.underlay ? 2 : 1
+    )
+    renderer.render(backdrop.scene, view.camera)
     renderer.render(view.scene, view.camera)
   }
 

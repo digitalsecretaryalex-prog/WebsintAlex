@@ -229,13 +229,10 @@ export const texture = {
 export const layers = [kick, perc, bass, pad, melody, texture]
 
 // variation: 0-2
-// breathBars: длина вдоха и выдоха в тактах для варианта «Дыхание»:
-// 84 уд/мин и 2 такта = 5.7 с (10 вдохов в минуту), 70 и 3 такта = 10.3 с (6)
 export const parts = [
   {
     name: 'Вход',
     bpm: 84,
-    breathBars: 2,
     level: 0,
     djFilter: 0,
     layers: {
@@ -250,7 +247,6 @@ export const parts = [
   {
     name: 'Сеть',
     bpm: 79,
-    breathBars: 2,
     level: -1,
     djFilter: 0,
     layers: {
@@ -265,7 +261,6 @@ export const parts = [
   {
     name: 'Глубина',
     bpm: 74,
-    breathBars: 3,
     level: -2,
     djFilter: -0.25,
     layers: {
@@ -280,7 +275,6 @@ export const parts = [
   {
     name: 'Ровно',
     bpm: 70,
-    breathBars: 3,
     level: -3,
     djFilter: -0.45,
     layers: {
@@ -295,21 +289,6 @@ export const parts = [
 ]
 
 export const tempoRamp = '8m'
-
-// Партитура сета «Спуск» для автопилота: такт и действие.
-// Смена ставится за такт до нужного, звук квантует её на начало такта.
-export const score = [
-  { bar: 0, part: 0 }, // 84 уд/мин, день ещё звучит
-  { bar: 8, variation: ['perc', 1] }, // перкуссия гуще: мысли бегут
-  { bar: 16, part: 1 }, // 79, входит мелодия
-  { bar: 24, variation: ['kick', 0] }, // бочка проще, напряжение спадает
-  { bar: 32, part: 2 }, // 74, без бочки, фильтр прикрыт
-  { bar: 40, variation: ['bass', 0] }, // бас ровнее
-  { bar: 48, part: 3 }, // 70, редкие удары, тише
-  { bar: 56, off: 'melody' }, // мелодия уходит
-  { bar: 60, off: 'bass' }, // остаются пэд, фон и редкая бочка
-  { bar: 64, stop: true }
-]
 
 export const master = {
   lowpass: { type: 'lowpass', frequency: 20000, Q: 0.7, rolloff: -24 },

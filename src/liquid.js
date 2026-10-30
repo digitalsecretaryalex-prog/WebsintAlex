@@ -81,6 +81,8 @@ async function start() {
 // Один кадр: обе плитки, потом копии во все элементы
 function draw(now) {
   requestAnimationFrame(draw)
+  // без металла на странице шейдер не считается
+  if (!field.skins.length) return
   if (document.hidden || now - field.last < 1000 / FPS) return
   const dt = Math.min(0.1, (now - field.last) / 1000)
   field.last = now
@@ -160,6 +162,7 @@ export function addLiquidSkin(element, shape = 'round') {
   field.skins.push(skin)
   return () => {
     canvas.remove()
+    element.classList.remove('hasLiquid')
     field.skins = field.skins.filter((other) => other !== skin)
   }
 }

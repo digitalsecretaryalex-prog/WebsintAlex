@@ -201,12 +201,13 @@ export function createBackdrop({ renderer, colors }, kind) {
   points.frustumCulled = false
   scene.add(points)
 
-  // clock: время с поправкой на энергию музыки, фон живёт медленнее к концу сета
+  // clock: время с поправкой на энергию музыки, фон живёт медленнее к концу сета.
+  // gain: поверх светлой подложки тоннеля и волны фон ярче, иначе теряется
   let clock = 0
-  function update(dt, look, motion) {
+  function update(dt, look, motion, gain = 1) {
     clock += dt * (0.5 + look.energy) * motion
     uniforms.uTime.value = clock
-    uniforms.uDim.value = look.dim * (0.6 + 0.4 * look.saturation)
+    uniforms.uDim.value = look.dim * (0.6 + 0.4 * look.saturation) * gain
     points.rotation.y = -clock * 0.004
   }
   return { scene, update }

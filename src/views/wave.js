@@ -464,6 +464,6 @@ export function createWave({ renderer, colors, reducedMotion, pointer }) {
     update,
     resize,
     pulse: chain.pulse,
-    ownBackdrop: true
+    underlay: atmosphere.underlay
   }
 }

@@ -51,6 +51,10 @@ export function addMetalSkin(button) {
   let mount = null
   let hovered = false
   let disposed = false
+  // снять металл: обработчики уходят вместе с ним
+  const listening = new AbortController()
+  const on = (type, callback) =>
+    button.addEventListener(type, callback, { signal: listening.signal })
   const reduceMotion = window.matchMedia(
     '(prefers-reduced-motion: reduce)'
   ).matches
@@ -70,23 +74,19 @@ export function addMetalSkin(button) {
     })
     .catch((error) => console.warn('Металл без шейдера', error))
 
-  button.addEventListener('pointerenter', () => {
+  on('pointerenter', () => {
     hovered = true
     button.classList.add('isHover')
     mount?.setSpeed(speed('hover'))
   })
-  button.addEventListener('pointerleave', () => {
+  on('pointerleave', () => {
     hovered = false
     button.classList.remove('isHover', 'isPressed')
     mount?.setSpeed(speed('idle'))
   })
-  button.addEventListener('pointerdown', () =>
-    button.classList.add('isPressed')
-  )
-  button.addEventListener('pointerup', () =>
-    button.classList.remove('isPressed')
-  )
-  button.addEventListener('click', (event) => {
+  on('pointerdown', () => button.classList.add('isPressed'))
+  on('pointerup', () => button.classList.remove('isPressed'))
+  on('click', (event) => {
     mount?.setSpeed(speed('press'))
     setTimeout(() => mount?.setSpeed(speed(hovered ? 'hover' : 'idle')), 300)
     // круг от точки клика; с клавиатуры из центра
@@ -102,11 +102,13 @@ export function addMetalSkin(button) {
 
   return () => {
     disposed = true
+    listening.abort()
     mount?.dispose()
+    mount = null
     rim.remove()
     face.remove()
     ripples.remove()
-    button.classList.remove('isMetal', 'hasShader')
+    button.classList.remove('isMetal', 'hasShader', 'isHover', 'isPressed')
   }
 }
 

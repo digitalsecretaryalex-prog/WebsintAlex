@@ -51,11 +51,14 @@
   display: flex;
 }
 
+/* центр кнопок на оси кнопки старта */
 .SwitchesToggle {
+  --toggle: 44px;
   display: grid;
   place-items: center;
-  width: 44px;
-  height: 44px;
+  width: var(--toggle);
+  height: var(--toggle);
+  margin-left: calc((var(--play) - var(--toggle)) / 2);
   border-radius: 50%;
   border: var(--hair) solid var(--color-hair);
   background-color: rgba(3, 6, 13, 0.55);

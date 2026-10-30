@@ -334,7 +334,6 @@ export function createSwarm(
             Math.random() * 2 - 1
           ).normalize(),
           phase: Math.random(),
-          rank: Math.random(),
           rate: 0.12 + Math.random() * 0.12,
           forward: Math.random() < 0.5,
           strength: 0,
@@ -453,11 +452,8 @@ export function createSwarm(
       const age = time - neuron.fired
       uniforms.uFade.value[index] = fade
       uniforms.uFlash.value[index] = Math.exp(-age * 3) * (neuron.strength ?? 1)
-      // свой ритм дыхания у каждого шара или общий вдох с кругом «Дыхание»
-      const breath =
-        target.breath === null
-          ? Math.sin(clock * speed + neuron.seed) * 0.04
-          : (target.breath - 0.5) * 0.14
+      // свой ритм дыхания у каждого шара
+      const breath = Math.sin(clock * speed + neuron.seed) * 0.04
       uniforms.uRadius.value[index] = neuron.radius * (1 + breath)
       uniforms.uAlive.value[index] = look.alive[neuron.layer]
       uniforms.uFlashColor.value[index].set(
@@ -479,19 +475,9 @@ export function createSwarm(
         .crossVectors(direction, pair.axis)
         .normalize()
         .multiplyScalar(length * 0.12)
-      // угасание связей: к концу сета остаются связи с малым rank
-      const kept = target.prune
-        ? 1 -
-          THREE.MathUtils.smoothstep(
-            pair.rank,
-            look.links - 0.08,
-            look.links + 0.08
-          )
-        : 1
       pair.strength =
         Math.min(pair.a.fade, pair.b.fade) *
         (1 - THREE.MathUtils.smoothstep(length, 1.5, REACH[mode])) *
-        kept *
         look.dim
       lineColor
         .copy(pair.a.color)

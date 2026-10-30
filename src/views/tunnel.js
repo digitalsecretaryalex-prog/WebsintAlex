@@ -455,6 +455,6 @@ export function createTunnel({ renderer, colors, reducedMotion, pointer }) {
     update,
     resize,
     pulse: chain.pulse,
-    ownBackdrop: true
+    underlay: atmosphere.underlay
   }
 }

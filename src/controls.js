@@ -482,39 +482,6 @@ export function createViewSwitch(
   return { element, setState }
 }
 
-// Идеи: кнопки-переключатели, включать можно несколько сразу
-export function createIdeaSwitch(ideas, onToggle) {
-  const element = document.createElement('div')
-  element.className = 'ViewSwitch'
-  element.setAttribute('role', 'group')
-  element.setAttribute('aria-label', 'Идеи')
-  const buttons = {}
-  ideas.forEach(({ id, label }) => {
-    const button = document.createElement('button')
-    button.type = 'button'
-    button.className = 'ViewButton IdeaButton'
-    button.dataset.idea = id
-    button.setAttribute('aria-label', label)
-    button.setAttribute('aria-pressed', 'false')
-    button.title = label
-    button.appendChild(createIcon(id))
-    button.addEventListener('click', () =>
-      onToggle(id, button.getAttribute('aria-pressed') !== 'true')
-    )
-    element.appendChild(button)
-    buttons[id] = button
-  })
-  function setState(id, isOn) {
-    buttons[id].setAttribute('aria-pressed', String(isOn))
-    buttons[id].classList.toggle('isOn', isOn)
-  }
-  // прогресс партитуры: кольцо по краю кнопки
-  function setProgress(id, value) {
-    buttons[id].style.setProperty('--progress', value.toFixed(3))
-  }
-  return { element, setState, setProgress, buttons }
-}
-
 // Шаговый регулятор для скрытой панели: крупное значение и кнопки ±.
 // Шаг виден и одинаков: клик, удержание (повтор) или стрелки.
 // PageUp и PageDown: пять шагов, Home и End: край диапазона.

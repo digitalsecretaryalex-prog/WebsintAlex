@@ -23,7 +23,6 @@ import {
   createStepper
 } from './controls.js'
 import { createIcon } from './icons.js'
-import { initIdeas } from './ideas.js'
 
 const RASTER_ROWS = ['kick', 'perc']
 const layerControls = {}
@@ -42,16 +41,11 @@ let brain = null
 let djFilterValue = 0
 let shownPart = 0
 let panelToggle = null
-let ideas = null
 let mini = null
 let tempoValue = parts[0].bpm
 const params = new URLSearchParams(location.search)
-// ?ui=metal: главные кнопки в жидком металле (src/metal.js)
-// ?ui=glass: светлые стеклянные плитки, ?ui=liquid: всё в жидком металле
-const ui = params.get('ui')
-const isMetal = ui === 'metal'
-const isDressed = ui === 'glass' || ui === 'liquid'
 let swingKnob = null
+let switches = null
 
 function knobDefault(layer, param) {
   if (param === 'filter') return layer.filter.frequency
@@ -62,12 +56,27 @@ function knobDefault(layer, param) {
 
 const KNOB_UNITS = { filter: 'Гц', pan: 'панорама' }
 
-// Варианты стекла и металла: класс на body и металл на нужных элементах.
-// Металл рисует один общий холст (src/liquid.js)
-const DRESS = {
+// Вид пульта (?ui=), переключается в «Вариантах» без перезагрузки.
+// base: как был; metal: главные кнопки в металле (src/metal.js, у кнопки
+// свой шейдер); glass и liquid: класс на body и металл на элементах
+// из списка, весь металл рисует один общий холст (src/liquid.js)
+const UI_LIST = [
+  { id: 'base', icon: 'uiBase', label: 'Пульт: обычный' },
+  { id: 'metal', icon: 'uiMetal', label: 'Пульт: главные кнопки в металле' },
+  { id: 'glass', icon: 'uiGlass', label: 'Пульт: стекло' },
+  { id: 'liquid', icon: 'uiLiquid', label: 'Пульт: всё в жидком металле' }
+]
+const SKINS = {
+  metal: [
+    ['.PlayButton'],
+    ['.ResetButton'],
+    ['.SwitchesToggle'],
+    ['.PanelBack']
+  ],
   glass: [
     ['.PlayButton', 'round'],
     ['.ResetButton', 'round'],
+    ['.SwitchesToggle', 'round'],
     ['.PartButton', 'round'],
     ['.Master .Knob.isLarge', 'round'],
     ['.PanelBack', 'pill'],
@@ -76,6 +85,7 @@ const DRESS = {
   liquid: [
     ['.PlayButton', 'round'],
     ['.ResetButton', 'round'],
+    ['.SwitchesToggle', 'round'],
     ['.PartButton', 'round'],
     ['.Knob', 'round'],
     ['.LaunchButton', 'round'],
@@ -85,32 +95,47 @@ const DRESS = {
     ['.StepperButton', 'round']
   ]
 }
-
+const startUi = UI_LIST.some(({ id }) => id === params.get('ui'))
+  ? params.get('ui')
+  : 'base'
+let ui = startUi
+// функции, которые снимают металл текущего вида
+let undoUi = []
+let uiVersion = 0
 let liquid = null
-function dress(...rules) {
-  if (!isDressed) return
-  const list = rules.length ? rules : DRESS[ui]
-  import('./liquid.js').then((module) => {
-    liquid = module
-    list.forEach(([selector, shape]) =>
-      document
-        .querySelectorAll(selector)
-        .forEach((element) => module.addLiquidSkin(element, shape))
+
+function applyUi(next) {
+  const version = ++uiVersion
+  undoUi.forEach((undo) => undo())
+  undoUi = []
+  ui = next
+  document.body.classList.toggle('isGlass', ui === 'glass')
+  document.body.classList.toggle('isLiquid', ui === 'liquid')
+  if (!SKINS[ui]) return
+  const skinModule =
+    ui === 'metal' ? import('./metal.js') : import('./liquid.js')
+  skinModule.then((skin) => {
+    // пока модуль грузился, выбрали другой вид
+    if (version !== uiVersion) return
+    if (skin.setLiquidSpeed) liquid = skin
+    SKINS[ui].forEach(([selector, shape]) =>
+      document.querySelectorAll(selector).forEach((element) => {
+        undoUi.push(
+          ui === 'metal'
+            ? skin.addMetalSkin(element)
+            : skin.addLiquidSkin(element, shape)
+        )
+      })
     )
   })
 }
 
-function initDress() {
-  if (!isDressed) return
-  document.body.classList.add(ui === 'glass' ? 'isGlass' : 'isLiquid')
-  dress()
-}
-
-function metalize(...buttons) {
-  if (!isMetal) return
-  import('./metal.js').then(({ addMetalSkin }) =>
-    buttons.forEach((button) => addMetalSkin(button))
-  )
+function selectUi(next) {
+  applyUi(next)
+  const url = new URL(location.href)
+  if (next === 'base') url.searchParams.delete('ui')
+  else url.searchParams.set('ui', next)
+  history.replaceState(null, '', url)
 }
 
 function withIcon(control, icon) {
@@ -141,30 +166,19 @@ function toggleLayer(id) {
   })
 }
 
-// apply*: звук уже запущен, вызываются сразу (их же зовёт партитура)
-function applyVariation(id, variation) {
-  audio.setVariation(id, variation)
-  updateLayer(id)
-}
-
-function applyPart(index) {
-  audio.selectPart(index)
-  transport.parts.setState(audio.getCurrentPart(), index)
-  layers.forEach((layer) => updateLayer(layer.id))
-}
-
-function turnOff(id) {
-  if (!audio.getLayerState(id).wantOn) return
-  audio.toggleLayer(id)
-  updateLayer(id)
-}
-
 function setVariation(id, variation) {
-  act(() => applyVariation(id, variation))
+  act(() => {
+    audio.setVariation(id, variation)
+    updateLayer(id)
+  })
 }
 
 function selectPart(index) {
-  act(() => applyPart(index))
+  act(() => {
+    audio.selectPart(index)
+    transport.parts.setState(audio.getCurrentPart(), index)
+    layers.forEach((layer) => updateLayer(layer.id))
+  })
 }
 
 async function togglePlay() {
@@ -231,7 +245,6 @@ function initTransport() {
     resetButton.element
   )
   transport = { play, tempo, parts: partButtons }
-  metalize(play.element, resetButton.element)
 }
 
 function initRaster() {
@@ -376,7 +389,7 @@ const VIEWS = [
 // у вариантов свой вид по умолчанию: стекло синее, как тоннель
 function readView() {
   const view = new URLSearchParams(location.search).get('view')
-  const fallback = { glass: 'tunnel', liquid: 'wave' }[ui] || 'field'
+  const fallback = { glass: 'tunnel', liquid: 'wave' }[startUi] || 'field'
   return VIEWS.some(({ id }) => id === view) ? view : fallback
 }
 
@@ -398,6 +411,34 @@ function saveParam(name, value) {
   const url = new URL(location.href)
   url.searchParams.set(name, value)
   history.replaceState(null, '', url)
+}
+
+// Варианты спрятаны за одной кнопкой: на экране остаётся минимум.
+// Ряды: виды нейронов и фон (появляются, когда загрузится 3D), вид пульта
+function initSwitches() {
+  switches = document.createElement('div')
+  switches.className = 'Switches'
+  const toggle = createIconButton(
+    'SwitchesToggle',
+    'variants',
+    'Варианты',
+    () => {
+      const isOpen = switches.classList.toggle('isOpen')
+      toggle.element.setAttribute('aria-expanded', String(isOpen))
+    }
+  )
+  toggle.element.setAttribute('aria-expanded', 'false')
+  panelToggle = createIconButton(
+    'SwitchesToggle',
+    'panelHide',
+    'Скрыть панель',
+    togglePanel
+  )
+  panelToggle.element.setAttribute('aria-pressed', 'false')
+  const uiSwitch = createViewSwitch(UI_LIST, startUi, selectUi, 'Вид пульта')
+  switches.append(toggle.element, panelToggle.element, uiSwitch.element)
+  // поверх интерфейса: раскрытые ряды не уходят под капсулы
+  document.body.appendChild(switches)
 }
 
 // Three.js грузится отдельно: без сети звук всё равно работает
@@ -425,47 +466,8 @@ function initScreen() {
         },
         'Фон'
       )
-      ideas = initIdeas({
-        screen,
-        palette,
-        actions: {
-          selectPart: applyPart,
-          setVariation: applyVariation,
-          turnOff,
-          togglePlay
-        }
-      })
-      // варианты спрятаны за одной кнопкой: на экране остаётся минимум
-      const switches = document.createElement('div')
-      switches.className = 'Switches'
-      const toggle = createIconButton(
-        'SwitchesToggle',
-        'variants',
-        'Варианты',
-        () => {
-          const isOpen = switches.classList.toggle('isOpen')
-          toggle.element.setAttribute('aria-expanded', String(isOpen))
-        }
-      )
-      toggle.element.setAttribute('aria-expanded', 'false')
-      panelToggle = createIconButton(
-        'SwitchesToggle',
-        'panelHide',
-        'Скрыть панель',
-        togglePanel
-      )
-      panelToggle.element.setAttribute('aria-pressed', 'false')
-      switches.append(
-        toggle.element,
-        panelToggle.element,
-        viewSwitch.element,
-        groundSwitch.element,
-        ideas.element
-      )
-      // поверх интерфейса: раскрытые ряды не уходят под капсулы
-      document.body.appendChild(switches)
-      metalize(toggle.element, panelToggle.element)
-      dress(['.SwitchesToggle', 'round'])
+      // ряды видов и фона встают перед рядом вида пульта
+      switches.lastChild.before(viewSwitch.element, groundSwitch.element)
     })
     .catch((error) => console.warn('3D-нейроны не загрузились', error))
 }
@@ -533,14 +535,10 @@ function initMini() {
   element.append(back.element, tempo.element, volume.element)
   document.body.appendChild(element)
   mini = { element, back, tempo, volume }
-  metalize(back.element)
 }
 
 function onAudioEvent(event) {
-  if (event.type === 'step') {
-    sequencer.setStep(event.step)
-    ideas?.onStep(event.step)
-  }
+  if (event.type === 'step') sequencer.setStep(event.step)
   // нота приходит через Tone.getDraw в момент звука: свет совпадает с ударом
   if (event.type === 'note' && brain) {
     brain.pulse(
@@ -640,7 +638,6 @@ function updateLoop(now) {
     )
     const master = toUnit(levels?.master)
     const part = audio.getCurrentPart()
-    const extra = ideas?.update(dt, { playing, part, level: master, on })
     brain.setState({
       on,
       level: layers.map((layer) => toUnit(levels?.[layer.id])),
@@ -658,8 +655,7 @@ function updateLoop(now) {
       playing,
       sounding,
       beat: sounding ? audio.getBarPosition() : null,
-      panelHidden: document.body.classList.contains('isPanelHidden'),
-      ...extra
+      panelHidden: document.body.classList.contains('isPanelHidden')
     })
   }
   requestAnimationFrame(updateLoop)
@@ -668,12 +664,13 @@ function updateLoop(now) {
 document.addEventListener('DOMContentLoaded', () => {
   audio.setListener(onAudioEvent)
   initTransport()
+  initSwitches()
   initScreen()
   initRaster()
   initLayers()
   initMaster()
   initMini()
-  initDress()
+  applyUi(startUi)
   initKeyboard()
   requestAnimationFrame(updateLoop)
   // заставка: ?intro=0 пропускает её

@@ -3,6 +3,8 @@
 // В эталонах фон собирался проходом FinalPass вместе с текстурами bloom;
 // эти текстуры там чёрные (проверено чтением пикселей), поэтому здесь
 // фон рисуется одним полноэкранным треугольником под нейронами.
+// Подложка лежит в своей сцене: поверх неё visuals.js рисует общий фон
+// (пыль, кальций, тракты), потом нейроны.
 import * as THREE from 'three'
 
 export function hexToVec3(hex) {
@@ -138,8 +140,8 @@ export function createAtmosphere(scene, ref, pixel) {
     })
   )
   underlay.frustumCulled = false
-  underlay.renderOrder = -1
-  scene.add(underlay)
+  const underlayScene = new THREE.Scene()
+  underlayScene.add(underlay)
 
   const count = ref.atmoCount
   const positions = new Float32Array(count * 3)
@@ -211,5 +213,5 @@ export function createAtmosphere(scene, ref, pixel) {
     moteUniforms.uRes.value.set(width * pixel, height * pixel)
   }
 
-  return { update, resize }
+  return { update, resize, underlay: underlayScene }
 }
