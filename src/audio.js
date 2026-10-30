@@ -48,8 +48,15 @@ export function setListener(callback) {
 }
 
 // Draw пропускает опоздавшие кадры: для подсветки это допустимо.
+// Нота слышна позже своего времени на задержку буфера и вывода звука,
+// поэтому свет ждёт столько же и вспыхивает вместе со звуком.
+// Задержку вывода (у Bluetooth-наушников до 0.2 с) знает только браузерный
+// контекст, Tone держит его внутри обёртки.
 function notify(event, time) {
-  Tone.getDraw().schedule(() => listener({ ...event, time }), time)
+  const context = Tone.getContext().rawContext
+  const native = context._nativeAudioContext || context
+  const delay = (context.baseLatency || 0) + (native.outputLatency || 0)
+  Tone.getDraw().schedule(() => listener({ ...event, time }), time + delay)
 }
 
 // фильтр → эхо → реверб → канал
