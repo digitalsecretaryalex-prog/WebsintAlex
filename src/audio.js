@@ -153,13 +153,14 @@ function initTexture(output) {
   const bandpass = new Tone.Filter({ type: 'bandpass', ...variation.bandpass })
   bandpass.connect(gate)
   const noise = new Tone.Noise(texture.noise).connect(bandpass).start()
+  const [quiet, loud] = texture.crackleVelocity
   const crackle = new Tone.NoiseSynth(texture.crackle).connect(bandpass)
   const sequence = new Tone.Sequence(
     (time) => {
       const layerState = state.texture
       const chance = texture.variations[layerState.variation].crackle
       if (layerState.isOn && Math.random() < chance) {
-        crackle.triggerAttackRelease('64n', time, 0.6 + Math.random() * 0.4)
+        crackle.triggerAttackRelease('64n', time, quiet + Math.random() * (loud - quiet))
       }
     },
     STEPS,
@@ -208,6 +209,9 @@ export function ensureStarted() {
 }
 
 async function startAudio() {
+  // буфер побольше: тяжёлая графика не рвёт звук. Задержка не мешает,
+  // смены всё равно ждут начала такта
+  Tone.setContext(new Tone.Context({ latencyHint: 'playback', lookAhead: 0.15 }))
   await Tone.start()
   const transport = Tone.getTransport()
   transport.bpm.value = parts[currentPart].bpm

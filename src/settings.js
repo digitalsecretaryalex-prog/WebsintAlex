@@ -115,7 +115,9 @@ export const pad = {
   id: 'pad',
   name: 'Пэд',
   synth: {
-    oscillator: { type: 'pwm', modulationFrequency: 0.3 },
+    // три расстроенные пилы: движение как у ШИМ, но без алиасинга
+    // (ШИМ в Tone строится WaveShaper-ом и давал хрип: −35 дБ вне гармоник)
+    oscillator: { type: 'fatsawtooth', count: 3, spread: 16 },
     envelope: { attack: 1.2, decay: 1, sustain: 0.7, release: 3 }
   },
   maxPolyphony: 24,
@@ -123,7 +125,8 @@ export const pad = {
   filter: { type: 'lowpass', frequency: 1400, Q: 0.5 },
   feedbackDelay: { delayTime: 0.5, feedback: 0.3, wet: 0.1, maxDelay: 2 },
   reverb: { decay: 6, preDelay: 0.05, wet: 0.45 },
-  channel: { volume: -16, pan: -0.15 },
+  // три пилы тише одной ШИМ на ~11 дБ, уровень поднят обратно
+  channel: { volume: -6, pan: -0.15 },
   loop: '4m',
   variations: [
     {
@@ -205,6 +208,8 @@ export const texture = {
   id: 'texture',
   name: 'Фон',
   noise: { type: 'pink', volume: -6 },
+  // громкость щелчка от и до: тихо, чтобы треск не читался как сбой звука
+  crackleVelocity: [0.18, 0.34],
   crackle: {
     noise: { type: 'white' },
     envelope: { attack: 0.001, decay: 0.01, sustain: 0, release: 0.01 }
