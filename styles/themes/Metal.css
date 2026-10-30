@@ -30,7 +30,6 @@
 }
 
 .isMetal > .Icon,
-.isMetal > .MetalLabel,
 .isMetal > .PanelBackText {
   position: relative;
   z-index: 2;
