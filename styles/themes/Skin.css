@@ -1,34 +1,31 @@
 /* Общее для вариантов ?ui=glass и ?ui=liquid.
-   1. Жидкий металл (src/liquid.js): холст металла лежит под элементом
-      целиком, поверх него грань (::after), отступ грани = толщина кольца.
+   1. Обводка: матовый бело-серый градиент (#f5f5f7 → #aeb2ba) по кругу
+      элемента, внутри грань (::after), отступ грани = толщина обводки.
+      Без хрома и бликов: свет идёт сверху слева, тень снизу справа.
    2. Детали как у железного синтезатора: шкала из 11 рисок вокруг ручки,
       шкала у движка, уровень лесенкой светодиодов. Цвета рисок задают
       Glass.css и Liquid.css */
-.hasLiquid {
+:root {
+  --rim-light: #f5f5f7;
+  --rim-dark: #aeb2ba;
+  --rim: linear-gradient(145deg, var(--rim-light) 0%, var(--rim-dark) 100%);
+}
+
+.hasRim {
   --ring: 2.5px;
   --face: linear-gradient(180deg, #202020 0%, #000000 100%);
   position: relative;
   isolation: isolate;
   border: 0;
   border-radius: 50%;
-  background: transparent;
+  background: var(--rim);
   box-shadow:
-    0 0 0 1px rgba(0, 0, 0, 0.3),
-    0 9px 9px rgba(0, 0, 0, 0.12),
-    0 2px 5px rgba(0, 0, 0, 0.2);
+    0 1px 2px rgba(255, 255, 255, 0.35) inset,
+    0 6px 14px rgba(0, 0, 0, 0.3),
+    0 1px 3px rgba(0, 0, 0, 0.25);
 }
 
-.LiquidSkin {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  width: 100%;
-  height: 100%;
-  border-radius: inherit;
-  pointer-events: none;
-}
-
-.hasLiquid::after {
+.hasRim::after {
   content: '';
   position: absolute;
   inset: var(--ring);
@@ -39,37 +36,25 @@
   transition: background-color 200ms linear;
 }
 
-.hasLiquid > .Icon,
-.hasLiquid > svg,
-.hasLiquid > .Dots,
-.hasLiquid > .PanelBackText {
+.hasRim > .Icon,
+.hasRim > svg,
+.hasRim > .Dots,
+.hasRim > .PanelBackText {
   position: relative;
   z-index: 2;
 }
 
 /* кнопки-капсулы */
-.VariationButton.hasLiquid,
-.PanelBack.hasLiquid {
+.VariationButton.hasRim,
+.PanelBack.hasRim {
   border-radius: 999px;
 }
 
-/* нажатие: грань проседает, как в liquid-metal-button */
-.hasLiquid:active::after {
+/* нажатие: грань проседает */
+.hasRim:active::after {
   box-shadow:
     inset 0 2px 4px rgba(0, 0, 0, 0.4),
     inset 0 1px 2px rgba(0, 0, 0, 0.3);
-}
-
-/* без шейдера кольцо из градиента */
-.isLiquidFallback .hasLiquid {
-  background: conic-gradient(
-    from 45deg,
-    #f2f2f2,
-    #6f6f6f,
-    #e6e6e6,
-    #575757,
-    #f2f2f2
-  );
 }
 
 /* ручка меньше, чтобы между соседями влезла шкала */

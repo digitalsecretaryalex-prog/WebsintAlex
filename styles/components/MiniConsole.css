@@ -67,7 +67,7 @@ body.isPanelHidden .MiniConsole {
 
 @media (hover: hover) {
   .StepperButton:hover,
-  .PanelBack:not(.isMetal):hover {
+  .PanelBack:not(.hasRim):hover {
     background-color: rgba(172, 198, 236, 0.12);
   }
 }

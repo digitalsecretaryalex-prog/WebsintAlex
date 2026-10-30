@@ -469,7 +469,14 @@ function createSwarm({ renderer, colors, reducedMotion, pointer }, mode) {
       neuron.fade = fade
       const age = time - neuron.fired
       uniforms.uFade.value[index] = fade
-      uniforms.uFlash.value[index] = Math.exp(-age * 3) * (neuron.strength ?? 1)
+      // вспышка шара: мягкий вход и длинный хвост
+      const rise = Math.min(1, age / 0.16)
+      uniforms.uFlash.value[index] =
+        rise *
+        rise *
+        (3 - 2 * rise) *
+        Math.exp(-age * 1.7) *
+        (neuron.strength ?? 1)
       // свой ритм дыхания у каждого шара
       const breath = Math.sin(clock * speed + neuron.seed) * 0.04
       uniforms.uRadius.value[index] = neuron.radius * (1 + breath)

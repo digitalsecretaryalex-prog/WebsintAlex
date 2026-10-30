@@ -26,10 +26,13 @@ const MELODY = 4
 const TEXTURE = 5
 const PACKETS = 6 // пакетов мелодии на дендритах одновременно
 
-// огибающая вспышки: вход 25 мс, затухание decay секунд
+// Огибающая вспышки: свет набирается плавно за 0.14 с (без щелчка),
+// потом тает decay секунд. Мягкий вход важнее точного попадания в удар:
+// на экране должно дышать, а не мигать
 export function envelope(age, decay) {
   if (age < 0) return 0
-  return Math.min(1, age / 0.025) * Math.exp(-age / decay)
+  const rise = Math.min(1, age / 0.14)
+  return rise * rise * (3 - 2 * rise) * Math.exp(-age / decay)
 }
 
 // «C#4» → 0..1 в диапазоне C4…C6: выше нота, выше ветка
@@ -389,22 +392,24 @@ export function createChain({ tints, rest, reducedMotion, branchFor }) {
 
     const kicks = hits.filter((hit) => hit.layer === KICK)
     sound.thumpAge = kicks.length ? time - kicks[kicks.length - 1].born : 99
-    sound.thump = sum(KICK, 0.14 + space[KICK] * 0.6)
-    sound.spark = sum(PERC, 0.05 + space[PERC] * 0.25)
+    // вспышки сглажены ещё раз: свет тянется за ударом, а не прыгает
+    const soft = 1 - Math.exp(-dt * 6)
+    sound.thump += (sum(KICK, 0.34 + space[KICK] * 0.9) - sound.thump) * soft
+    sound.spark += (sum(PERC, 0.16 + space[PERC] * 0.4) - sound.spark) * soft
     // новый узор искр на каждый удар перкуссии
     const percs = hits.filter((hit) => hit.layer === PERC)
     if (percs.length) sound.sparkSeed = percs[percs.length - 1].born * 7.31
-    sound.crackle = sum(TEXTURE, 0.06)
+    sound.crackle += (sum(TEXTURE, 0.18) - sound.crackle) * soft
     const crackles = hits.filter((hit) => hit.layer === TEXTURE)
     if (crackles.length)
       sound.crackleSeed = crackles[crackles.length - 1].born * 3.7
     // бас и пэд: удар ноты плюс ровный уровень, пока нота звучит
-    const ease = 1 - Math.exp(-dt * 4)
+    const ease = 1 - Math.exp(-dt * 2.5)
     sound.bass +=
-      (look.alive[BASS] * 0.6 + sum(BASS, 0.5 + space[BASS]) - sound.bass) *
+      (look.alive[BASS] * 0.6 + sum(BASS, 0.7 + space[BASS]) - sound.bass) *
       ease
     sound.pad += (look.alive[PAD] - sound.pad) * (1 - Math.exp(-dt * 1.5))
-    sound.chord = sum(PAD, 1.2 + space[PAD] * 2)
+    sound.chord += (sum(PAD, 1.6 + space[PAD] * 2) - sound.chord) * ease
 
     // пакеты мелодии: доля пути от кончика ветки до тела, потом подсветка тела
     for (let i = packets.length - 1; i >= 0; i--) {

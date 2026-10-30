@@ -311,7 +311,7 @@ export const layerKnobs = [
   },
   { param: 'echo', label: 'эхо', icon: 'echo', min: 0, max: 0.6 },
   { param: 'space', label: 'простор', icon: 'space', min: 0, max: 0.8 },
-  // extra: только в вариантах стекла и металла, в базовой панели скрыта
+  // extra: только в тёмном и стеклянном пульте, в базовом скрыта
   {
     param: 'pan',
     label: 'панорама',

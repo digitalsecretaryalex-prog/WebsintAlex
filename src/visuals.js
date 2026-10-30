@@ -2,7 +2,7 @@
 // Режим живёт в своём файле в views/ и при смене освобождает ресурсы.
 import * as THREE from 'three'
 import { createSpikes } from './views/spikes.js'
-import { createBackdrop, BACKGROUNDS } from './backgrounds/index.js'
+import { createBackdrop } from './backgrounds/index.js'
 import {
   createFlight,
   createStream,
@@ -47,7 +47,7 @@ function disposeScene(scene) {
   })
 }
 
-export function initVisuals(container, palette, reducedMotion, mode, ground) {
+export function initVisuals(container, palette, reducedMotion, mode) {
   const renderer = new THREE.WebGLRenderer({ antialias: true })
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
   // сначала фон, потом вид поверх без очистки
@@ -118,16 +118,7 @@ export function initVisuals(container, palette, reducedMotion, mode, ground) {
 
   let view = null
   let name = null
-  let backdrop = null
-  let groundName = null
-
-  function setBackground(next) {
-    if (!BACKGROUNDS.includes(next) || next === groundName) return
-    if (backdrop) disposeScene(backdrop.scene)
-    groundName = next
-    backdrop = createBackdrop({ renderer, colors, reducedMotion }, next)
-    resize()
-  }
+  const backdrop = createBackdrop({ renderer, colors, reducedMotion })
 
   function setMode(next) {
     if (!CREATE[next] || next === name) return
@@ -212,9 +203,8 @@ export function initVisuals(container, palette, reducedMotion, mode, ground) {
     renderer.render(view.scene, view.camera)
   }
 
-  setBackground(BACKGROUNDS.includes(ground) ? ground : 'membrane')
   setMode(CREATE[mode] ? mode : 'field')
   requestAnimationFrame(frame)
 
-  return { setState, pulse, setMode, setBackground, getMode: () => name }
+  return { setState, pulse, setMode, getMode: () => name }
 }

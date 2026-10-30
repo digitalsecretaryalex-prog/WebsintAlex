@@ -17,8 +17,10 @@ export const MELODY = 4
 export const TEXTURE = 5
 
 export function createHearing() {
-  // огибающая каждого слоя: удар добавляет, простор растягивает затухание
+  // Огибающая каждого слоя: нота копится в pending и перетекает в свет
+  // за ~0.1 с, поэтому вспышка набирается плавно, а не щёлкает
   const glow = new Array(LAYERS).fill(0)
+  const pending = new Array(LAYERS).fill(0)
   let notes = []
   let echoes = []
   let time = 0
@@ -40,7 +42,7 @@ export function createHearing() {
       pan: sound.pan[layer],
       echo: gain < 1
     })
-    glow[layer] = Math.min(1.5, glow[layer] + strength)
+    pending[layer] += strength
     const wet = sound.echo[layer]
     if (gain === 1 && wet > 0.03) {
       let repeat = Math.min(0.9, wet * 1.8)
@@ -60,9 +62,13 @@ export function createHearing() {
     const due = echoes.filter((echo) => echo.at <= time)
     echoes = echoes.filter((echo) => echo.at > time)
     due.forEach(({ layer, event, gain }) => pulse(layer, event, gain))
+    const rise = 1 - Math.exp(-dt * 10)
     for (let i = 0; i < LAYERS; i++) {
+      const give = pending[i] * rise
+      pending[i] -= give
+      glow[i] = Math.min(1.5, glow[i] + give)
       const space = sound ? sound.space[i] : 0.3
-      glow[i] *= Math.exp(-dt / (0.18 + space * 0.9))
+      glow[i] *= Math.exp(-dt / (0.4 + space * 1.3))
     }
     const heard = notes
     notes = []

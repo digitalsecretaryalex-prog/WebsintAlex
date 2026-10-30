@@ -56,59 +56,43 @@ function knobDefault(layer, param) {
 
 const KNOB_UNITS = { filter: 'Гц', pan: 'панорама' }
 
-// Вид пульта из адреса (?ui=), по умолчанию жидкий металл.
-// liquid: металл на всех ручках и кнопках; glass: стеклянные плитки;
-// metal: металл только на главных кнопках (src/metal.js, у кнопки свой
-// шейдер); base: без металла. В glass и liquid весь металл рисует один
-// общий холст (src/liquid.js)
-const SKINS = {
+// Вид пульта из адреса (?ui=), по умолчанию тёмный.
+// liquid: тёмный пульт, матовая бело-серая обводка у ручек и кнопок
+// (styles/themes/Skin.css); glass: светлые стеклянные плитки с той же
+// обводкой; base: без обводки, три ручки на слой
+const RIMS = {
   base: [],
-  metal: [
-    ['.PlayButton'],
-    ['.ResetButton'],
-    ['.SwitchesToggle'],
-    ['.PanelBack']
-  ],
   glass: [
-    ['.PlayButton', 'round'],
-    ['.ResetButton', 'round'],
-    ['.SwitchesToggle', 'round'],
-    ['.PartButton', 'round'],
-    ['.Master .Knob.isLarge', 'round'],
-    ['.PanelBack', 'pill'],
-    ['.MuteButton', 'round']
+    '.PlayButton',
+    '.ResetButton',
+    '.SwitchesToggle',
+    '.PartButton',
+    '.Master .Knob.isLarge',
+    '.PanelBack',
+    '.MuteButton'
   ],
   liquid: [
-    ['.PlayButton', 'round'],
-    ['.ResetButton', 'round'],
-    ['.SwitchesToggle', 'round'],
-    ['.PartButton', 'round'],
-    ['.Knob', 'round'],
-    ['.LaunchButton', 'round'],
-    ['.MuteButton', 'round'],
-    ['.VariationButton', 'pill'],
-    ['.PanelBack', 'pill'],
-    ['.StepperButton', 'round']
+    '.PlayButton',
+    '.ResetButton',
+    '.SwitchesToggle',
+    '.PartButton',
+    '.Knob',
+    '.LaunchButton',
+    '.MuteButton',
+    '.VariationButton',
+    '.PanelBack',
+    '.StepperButton'
   ]
 }
-const ui = SKINS[params.get('ui')] ? params.get('ui') : 'liquid'
+const ui = RIMS[params.get('ui')] ? params.get('ui') : 'liquid'
 
 function initSkin() {
   document.body.classList.toggle('isGlass', ui === 'glass')
   document.body.classList.toggle('isLiquid', ui === 'liquid')
-  if (!SKINS[ui].length) return
-  const skinModule =
-    ui === 'metal' ? import('./metal.js') : import('./liquid.js')
-  skinModule.then((skin) =>
-    SKINS[ui].forEach(([selector, shape]) =>
-      document
-        .querySelectorAll(selector)
-        .forEach((element) =>
-          ui === 'metal'
-            ? skin.addMetalSkin(element)
-            : skin.addLiquidSkin(element, shape)
-        )
-    )
+  RIMS[ui].forEach((selector) =>
+    document
+      .querySelectorAll(selector)
+      .forEach((element) => element.classList.add('hasRim'))
   )
 }
 
@@ -265,7 +249,7 @@ function initLayers() {
         }
       )
       const wrapper = withIcon(knobs[knob.param].element, knob.icon)
-      // панорама есть только в вариантах стекла и металла
+      // панорама есть только в тёмном и стеклянном пульте
       if (knob.extra) wrapper.classList.add('isExtra')
       knobRow.appendChild(wrapper)
     })
@@ -365,36 +349,6 @@ function readView() {
   return VIEWS.some(({ id }) => id === view) ? view : 'tunnel'
 }
 
-// Фоны за нейронами: каждый отвечает на ноты и на все ручки
-const BACKGROUND_LIST = [
-  {
-    id: 'membrane',
-    label: 'Фон: мембрана, по сфере из точек идут волны от ударов'
-  },
-  {
-    id: 'cortex',
-    label: 'Фон: кора, по ткани из нейронов бегут лавины импульсов'
-  },
-  {
-    id: 'brain',
-    label: 'Фон: мозг, связи полушарий и таламуса зажигаются от нот'
-  },
-  {
-    id: 'sync',
-    label: 'Фон: синхрон, нейроны вспыхивают волнами, к концу сета в такт'
-  },
-  {
-    id: 'plasma',
-    label: 'Фон: плазма, по волнистым аксонам слоёв бегут сигналы'
-  },
-  { id: 'dust', label: 'Фон: пыль, только космос' }
-]
-
-function readBackground() {
-  const ground = new URLSearchParams(location.search).get('bg')
-  return BACKGROUND_LIST.some(({ id }) => id === ground) ? ground : 'membrane'
-}
-
 function saveParam(name, value) {
   const url = new URL(location.href)
   url.searchParams.set(name, value)
@@ -438,22 +392,12 @@ function initScreen() {
   import('./visuals.js')
     .then(({ initVisuals }) => {
       const palette = readPalette()
-      const ground = readBackground()
-      brain = initVisuals(screen, palette, reducedMotion, view, ground)
+      brain = initVisuals(screen, palette, reducedMotion, view)
       const viewSwitch = createViewSwitch(VIEWS, view, (next) => {
         brain.setMode(next)
         saveParam('view', next)
       })
-      const groundSwitch = createViewSwitch(
-        BACKGROUND_LIST,
-        ground,
-        (next) => {
-          brain.setBackground(next)
-          saveParam('bg', next)
-        },
-        'Фон'
-      )
-      switches.append(viewSwitch.element, groundSwitch.element)
+      switches.append(viewSwitch.element)
     })
     .catch((error) => console.warn('3D-нейроны не загрузились', error))
 }

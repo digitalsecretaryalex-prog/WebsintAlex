@@ -414,7 +414,7 @@ export function createPartButtons(parts, onSelect) {
 export function createIconButton(className, icon, label, onClick) {
   const element = createToggle(className, icon, label, onClick)
   element.removeAttribute('aria-pressed')
-  // меняется только значок: слои металла (?ui=metal) остаются
+  // меняется только значок, обводка и обработчики остаются
   function setIcon(name, nextLabel) {
     element.querySelector('.Icon').replaceWith(createIcon(name))
     element.setAttribute('aria-label', nextLabel)

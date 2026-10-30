@@ -1,5 +1,5 @@
 /* Вариант «Стекло» (?ui=glass): светлые стеклянные плитки на тёмно-синем,
-   как стеклянная плитка; синие линии знака; металлические кольца у кнопок.
+   как стеклянная плитка; матовая бело-серая обводка у кнопок.
    Контраст значков: #13204a к плитке #e8edf7 14:1, приглушённый #47578a
    6.4:1, синий #2f5fe0 4.7:1, светлый #c9d4f2 к фону #0b1533 12:1 */
 body.isGlass {
@@ -167,13 +167,7 @@ body.isGlass .Fader input::-webkit-slider-thumb {
   height: 30px;
   margin-top: -13px;
   border-radius: 5px;
-  background: linear-gradient(
-    90deg,
-    #f4f6fa,
-    #9aa3b4 40%,
-    #ffffff 55%,
-    #7b8496
-  );
+  background: linear-gradient(145deg, var(--rim-light), var(--rim-dark));
   box-shadow:
     0 0 0 1px rgba(0, 0, 0, 0.35),
     0 3px 6px rgba(2, 6, 24, 0.4);
@@ -189,35 +183,29 @@ body.isGlass .Fader input::-moz-range-thumb {
   width: 10px;
   height: 30px;
   border-radius: 5px;
-  background: linear-gradient(
-    90deg,
-    #f4f6fa,
-    #9aa3b4 40%,
-    #ffffff 55%,
-    #7b8496
-  );
+  background: linear-gradient(145deg, var(--rim-light), var(--rim-dark));
 }
 
 body.isGlass .Master .Fader input::-webkit-slider-runnable-track {
   background-color: rgba(201, 212, 242, 0.35);
 }
 
-/* Металлические кнопки: светлая грань, синий значок */
-body.isGlass .hasLiquid {
+/* Кнопки с обводкой: светлая грань, синий значок */
+body.isGlass .hasRim {
   --face: var(--glass-dome);
   color: var(--glass-blue);
 }
 
-body.isGlass .PlayButton.hasLiquid {
+body.isGlass .PlayButton.hasRim {
   --ring: 3px;
   box-shadow: 0 12px 30px rgba(2, 6, 24, 0.5);
 }
 
-body.isGlass .PartButton.hasLiquid {
+body.isGlass .PartButton.hasRim {
   color: var(--glass-ink);
 }
 
-body.isGlass .PartButton.isOn.hasLiquid {
+body.isGlass .PartButton.isOn.hasRim {
   --face: radial-gradient(circle at 35% 30%, #6d93ff 0%, var(--glass-blue) 70%);
   color: #ffffff;
 }
@@ -235,16 +223,16 @@ body.isGlass .PartsTrail {
   stroke: #8fb0ff;
 }
 
-body.isGlass .MuteButton.hasLiquid {
+body.isGlass .MuteButton.hasRim {
   color: var(--glass-ink-dim);
 }
 
-body.isGlass .MuteButton.hasLiquid[aria-pressed='true'] {
+body.isGlass .MuteButton.hasRim[aria-pressed='true'] {
   --face: var(--glass-ink);
   color: #ffffff;
 }
 
-body.isGlass .Master .Knob.isLarge.hasLiquid {
+body.isGlass .Master .Knob.isLarge.hasRim {
   --ring: 4px;
   --face: radial-gradient(
     circle at 40% 30%,
@@ -260,7 +248,7 @@ body.isGlass .Master .Knob.isLarge .KnobValue {
   stroke: var(--glass-blue);
 }
 
-body.isGlass .PanelBack.hasLiquid {
+body.isGlass .PanelBack.hasRim {
   color: var(--glass-ink);
 }
 

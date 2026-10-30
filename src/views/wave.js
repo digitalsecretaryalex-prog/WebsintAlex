@@ -363,6 +363,8 @@ export function createWave({ renderer, colors, reducedMotion, pointer }) {
   let spread = 0
   let height = 1
   let started = false
+  // сглаженный удар бочки для камеры
+  let sway = 0
 
   function update({ dt, target, look, spikes }) {
     const wake = look.wake
@@ -412,10 +414,11 @@ export function createWave({ renderer, colors, reducedMotion, pointer }) {
     gaze.lerp(focus, 1 - Math.exp(-dt * 2.5))
     camera.up.set(0, 1, 0)
     camera.lookAt(gaze.x + mouse.x * 0.3, gaze.y, gaze.z)
-    // бочка толкает камеру вперёд и чуть сужает взгляд
-    const thump = chain.state.sound.thump * live
-    camera.position.lerp(gaze, Math.min(0.06, thump * 0.04))
-    camera.fov = 45 - thump * 1.4
+    // бочка ведёт камеру вперёд: ход маленький и с инерцией, чтобы
+    // движение читалось как дыхание, а не как толчок на каждый удар
+    sway += (chain.state.sound.thump * live - sway) * (1 - Math.exp(-dt * 2.2))
+    camera.position.lerp(gaze, Math.min(0.018, sway * 0.012))
+    camera.fov = 45 - sway * 0.45
 
     spread += ((target.panelHidden ? 1 : 0) - spread) * (1 - Math.exp(-dt * 2))
     frame()
