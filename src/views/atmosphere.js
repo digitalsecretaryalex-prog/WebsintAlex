@@ -65,6 +65,7 @@ const UNDERLAY_FRAGMENT = /* glsl */ `
 uniform float iTime;
 uniform vec3 uBg; uniform vec3 uFlameA; uniform vec3 uFlameB; uniform float uFlameAmt;
 uniform vec3 uFlash; uniform vec2 uFlashAt;
+uniform vec3 uPadTint; uniform float uPad; uniform float uThump;
 varying vec2 vUv;
 vec3 warp3d(vec3 pos, float t){ float curv=.8,a=1.9,b=0.7; pos*=2.;
   pos.x+=curv*sin(t+a*pos.y)+t*b; pos.y+=curv*cos(t+a*pos.x);
@@ -81,12 +82,15 @@ void main(){
   // свет вспышки нейрона расходится по фону мягким пятном
   vec2 fromFlash = (vUv - uFlashAt) * vec2(1.6, 1.0);
   bg += uFlash * exp(-dot(fromFlash, fromFlash) * 9.0);
+  // пэд окрашивает глубину аккордом, бочка чуть светлит фон
+  bg = mix(bg, uPadTint * 0.22, uPad * 0.35) * (1.0 + uThump * 0.18);
   gl_FragColor = vec4(bg + flame*uFlameAmt, 1.);
 }`
 
 const MOTE_VERTEX = /* glsl */ `
 attribute float size; attribute float seed; uniform float uTime; uniform vec2 uRes;
-varying float vA;
+uniform float uCrackle; uniform float uCrackleSeed;
+varying float vA; varying float vPop;
 vec3 warp(vec3 p, float t){ float c=0.9,a=1.9,b=0.02,s=0.05; p*=2.;
   p.x+=c*sin(s*t+a*p.y)+t*b; p.y+=c*cos(s*t+a*p.x); p.y+=c*sin(s*t+a*p.z)+t*b;
   p.z+=c*cos(s*t+a*p.y); p.z+=c*sin(s*t+a*p.x)+t*b; p.x+=c*cos(s*t+a*p.z);
@@ -96,14 +100,16 @@ void main(){
   vec4 mv = modelViewMatrix * vec4(v, 1.0);
   float r = length(v); float farF = 1.0 - smoothstep(5.0, 6.5, r); float nearF = smoothstep(0.0, 0.5, -mv.z);
   vA = farF * nearF;
+  // треск фона: на каждый щелчок вспыхивает своя горстка пылинок
+  vPop = uCrackle * step(0.82, fract(seed * 37.0 + uCrackleSeed));
   gl_PointSize = size * uRes.y / 900.0 / -mv.z; gl_PointSize = max(gl_PointSize, 1.0);
   gl_Position = projectionMatrix * mv;
 }`
 
 const MOTE_FRAGMENT = /* glsl */ `
-uniform vec3 uColor; uniform float uLight; varying float vA;
+uniform vec3 uColor; uniform float uLight; varying float vA; varying float vPop;
 void main(){ vec2 p = gl_PointCoord - 0.5; float l = length(p); if (l > 0.5) discard;
-  float tex = smoothstep(0.5, 0.0, l); gl_FragColor = vec4(uColor * tex, tex * vA * 0.6 * uLight); }`
+  float tex = smoothstep(0.5, 0.0, l); gl_FragColor = vec4(uColor * tex * (1.0 + vPop * 2.5), tex * vA * 0.6 * uLight * (1.0 + vPop * 1.5)); }`
 
 // ref: { bg, flameA, flameB, flameAmt, atmo, atmoCount, atmoSize, atmoSpeed }
 export function createAtmosphere(scene, ref, pixel) {
@@ -120,7 +126,10 @@ export function createAtmosphere(scene, ref, pixel) {
         uFlameB: { value: hexToVec3(ref.flameB) },
         uFlameAmt: { value: ref.flameAmt },
         uFlash: { value: new THREE.Vector3() },
-        uFlashAt: { value: new THREE.Vector2(0.5, 0.5) }
+        uFlashAt: { value: new THREE.Vector2(0.5, 0.5) },
+        uPadTint: { value: new THREE.Vector3() },
+        uPad: { value: 0 },
+        uThump: { value: 0 }
       },
       vertexShader: UNDERLAY_VERTEX,
       fragmentShader: UNDERLAY_FRAGMENT,
@@ -154,7 +163,9 @@ export function createAtmosphere(scene, ref, pixel) {
     uTime: { value: 0 },
     uColor: { value: hexToVec3(ref.atmo) },
     uRes: { value: new THREE.Vector2(1, 1) },
-    uLight: { value: 1 }
+    uLight: { value: 1 },
+    uCrackle: { value: 0 },
+    uCrackleSeed: { value: 0 }
   }
   const motes = new THREE.Points(
     geometry,
@@ -172,13 +183,20 @@ export function createAtmosphere(scene, ref, pixel) {
   scene.add(motes)
 
   const flashScreen = new THREE.Vector3()
-  // clock стоит во сне; wake 0..1; breath: дыхание света
-  function update({ clock, wake, breath, camera, flash }) {
+  // clock стоит во сне; wake 0..1; breath: дыхание света; sound: из chain.js
+  function update({ clock, wake, breath, camera, flash, sound, padTint }) {
     const u = underlay.material.uniforms
     u.iTime.value = clock
     u.uFlameAmt.value = ref.flameAmt * (0.5 + 0.5 * wake) * breath
     moteUniforms.uTime.value = clock * ref.atmoSpeed * 8
     moteUniforms.uLight.value = 0.5 + 0.5 * wake
+    if (sound) {
+      u.uPadTint.value.copy(padTint)
+      u.uPad.value = sound.pad
+      u.uThump.value = Math.min(1, sound.thump)
+      moteUniforms.uCrackle.value = sound.crackle
+      moteUniforms.uCrackleSeed.value = sound.crackleSeed
+    }
     motes.position.copy(camera.position)
     // вспышка нейрона цепи: мягкий свет на фоне в её месте экрана
     flashScreen.copy(flash.point).project(camera)

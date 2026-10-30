@@ -17,6 +17,30 @@ const SIDE_SPAN = 46 // участок пути, на котором разло�
 const LEAVE = 0.12 // доля такта: импульс выходит из тела
 const ARRIVE = 0.88 // доля такта: импульс дошёл до дендритов следующего
 const SIGNAL_TIME = 1.3 // секунды, за которые сигнал периферии доходит до цепи
+// слои по порядку settings.layers
+const KICK = 0
+const PERC = 1
+const BASS = 2
+const PAD = 3
+const MELODY = 4
+const TEXTURE = 5
+export const PACKETS = 6 // пакетов мелодии на дендритах одновременно
+
+// огибающая вспышки: вход 25 мс, затухание decay секунд
+function envelope(age, decay) {
+  if (age < 0) return 0
+  return Math.min(1, age / 0.025) * Math.exp(-age / decay)
+}
+
+// «C#4» → 0..1 в диапазоне C4…C6: выше нота, выше ветка
+function pitchUnit(name) {
+  const match = /^([A-G])(#|b)?(-?\d)$/.exec(name || '')
+  if (!match) return 0.5
+  const steps = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 }
+  const shift = match[2] === '#' ? 1 : match[2] === 'b' ? -1 : 0
+  const midi = (Number(match[3]) + 1) * 12 + steps[match[1]] + shift
+  return Math.min(1, Math.max(0, (midi - 60) / 24))
+}
 
 const smoothstep = THREE.MathUtils.smoothstep
 const slotOf = (k) => ((k % CHAIN) + CHAIN) % CHAIN
@@ -78,6 +102,79 @@ export function neuronUniforms() {
   }
 }
 
+// Отклик на звук в шейдерах обоих видов
+export const SOUND_GLSL = /* glsl */ `
+uniform float uThump;
+uniform float uThumpAge;
+uniform float uSpark;
+uniform float uSparkSeed;
+uniform float uBass;
+uniform float uPad;
+uniform float uChord;
+uniform vec4 uPackets[${PACKETS}];
+uniform vec3 uKickTint;
+uniform vec3 uPercTint;
+uniform vec3 uBassTint;
+uniform vec3 uPadTint;
+uniform vec3 uMelodyTint;
+// искра перкуссии: случайная пятая часть кончиков, новый узор на каждый удар
+float sparkPick(vec2 id) {
+  return step(0.8, fract(sin(dot(id, vec2(12.9898, 78.233)) + uSparkSeed) * 43758.5453));
+}
+// пакет мелодии на ветке branch нейрона cell; при progress 1 голова у тела
+float packetGlow(float cell, float branch, float order) {
+  float value = 0.0;
+  for (int i = 0; i < ${PACKETS}; i++) {
+    vec4 p = uPackets[i];
+    if (p.z < 0.0 || abs(p.x - cell) > 0.5 || abs(p.y - branch) > 0.5) continue;
+    float d = order - (1.0 - p.z);
+    value += p.w * (exp(-d * d * 90.0) + 0.35 * step(0.0, d) * exp(-d * 6.0));
+  }
+  return value;
+}`
+
+export function soundUniforms(tints) {
+  return {
+    uThump: { value: 0 },
+    uThumpAge: { value: 99 },
+    uSpark: { value: 0 },
+    uSparkSeed: { value: 0 },
+    uBass: { value: 0 },
+    uPad: { value: 0 },
+    uChord: { value: 0 },
+    uPackets: { value: [] },
+    uKickTint: { value: tints[0] },
+    uPercTint: { value: tints[1] },
+    uBassTint: { value: tints[2] },
+    uPadTint: { value: tints[3] },
+    uMelodyTint: { value: tints[4] }
+  }
+}
+
+export function writeSound(sound, uniforms) {
+  uniforms.uThump.value = sound.thump
+  uniforms.uThumpAge.value = sound.thumpAge
+  uniforms.uSpark.value = sound.spark
+  uniforms.uSparkSeed.value = sound.sparkSeed
+  uniforms.uBass.value = sound.bass
+  uniforms.uPad.value = sound.pad
+  uniforms.uChord.value = sound.chord
+  uniforms.uPackets.value = sound.packets
+}
+
+// Порядок веток нейрона снизу вверх: высокие ноты бегут по верхним веткам
+export function branchOrder(branches) {
+  return branches
+    .map((branch, id) => ({
+      id,
+      height:
+        branch.points.reduce((sum, point) => sum + point.y, 0) /
+        branch.points.length
+    }))
+    .sort((a, b) => a.height - b.height)
+    .map(({ id }) => id)
+}
+
 export function writeNeurons(neurons, uniforms) {
   neurons.forEach((n, i) => {
     uniforms.uCenter.value[i].copy(n.center)
@@ -88,8 +185,9 @@ export function writeNeurons(neurons, uniforms) {
   })
 }
 
-// tints: цвета слоёв, rest: цвет покоя (оба Vector3 в 0..1)
-export function createChain({ tints, rest, reducedMotion }) {
+// tints: цвета слоёв, rest: цвет покоя (оба Vector3 в 0..1);
+// branchFor(cell, 0..1): какая ветка нейрона отвечает за высоту ноты
+export function createChain({ tints, rest, reducedMotion, branchFor }) {
   const neurons = Array.from({ length: NEURONS }, (_, i) => ({
     center: new THREE.Vector3(0, 0, 99),
     next: new THREE.Vector3(0, 0, 99),
@@ -122,8 +220,32 @@ export function createChain({ tints, rest, reducedMotion }) {
     target: new THREE.Vector3(),
     // последняя вспышка цепи: для света вокруг
     flash: { point: new THREE.Vector3(0, 0, 99), tint: rest.clone(), age: 99 },
-    kick: 0
+    kick: 0,
+    // Отклик на звук, 0..1 в каждый кадр. У каждого слоя свой:
+    // бочка вздрагивает всем, перкуссия искрит кончиками дендритов,
+    // бас светит в аксоне, пэд окрашивает тела аккордом, мелодия бежит
+    // пакетом по ветке к телу, фон щёлкает пылинками
+    sound: {
+      thump: 0,
+      thumpAge: 99,
+      spark: 0,
+      sparkSeed: 0,
+      bass: 0,
+      pad: 0,
+      chord: 0,
+      crackle: 0,
+      crackleSeed: 0,
+      packets: Array.from(
+        { length: PACKETS },
+        () => new THREE.Vector4(-1, 0, -1, 0)
+      )
+    }
   }
+  // удары: { layer, born, strength, accent }; пакеты мелодии; повторы эха
+  const hits = []
+  const packets = []
+  const echoes = []
+  let params = null
 
   const flat = new THREE.Vector2()
   const start = new THREE.Vector3()
@@ -134,9 +256,14 @@ export function createChain({ tints, rest, reducedMotion }) {
   let lastBar = null
   let colorTurn = 0
 
+  // нейроны слоя стоят с той стороны, куда слой разведён панорамой
   function placeSide(n, s) {
+    const pan = params ? params.pan[n.layer] : 0
     n.s = s
-    n.angle = Math.random() * Math.PI * 2
+    n.angle =
+      Math.abs(pan) > 0.05
+        ? (pan > 0 ? 0 : Math.PI) + (Math.random() - 0.5) * Math.PI * 0.9
+        : Math.random() * Math.PI * 2
     n.radius = 2.3 + Math.random() * 3.4
     n.fired = -99
   }
@@ -183,10 +310,134 @@ export function createChain({ tints, rest, reducedMotion }) {
     state.flash.age = 0
   }
 
+  // нейрон периферии того же слоя, ближе к середине пути и к своей стороне
+  function wakeSide(layer, strength) {
+    const pan = params ? params.pan[layer] : 0
+    let best = null
+    let bestScore = Infinity
+    side.forEach((n) => {
+      const d = n.s - state.travel
+      if (n.layer !== layer || d < 1.5 || d > 24 || time - n.fired < 0.9) return
+      const sideMatch =
+        Math.abs(pan) > 0.05 && Math.cos(n.angle) * pan < 0 ? 6 : 0
+      const score = Math.abs(d - 9) + sideMatch + Math.random() * 5
+      if (score < bestScore) {
+        best = n
+        bestScore = score
+      }
+    })
+    if (best) {
+      best.fired = time
+      best.strength = strength
+    }
+  }
+
+  // Нота: event из audio.js (velocity, accent, note, duration).
+  // echo > 0: это повтор эха, он слабее и сам эхо не порождает
+  function pulse(layer, event = {}, echo = 0) {
+    if (!params || layer < 0) return
+    if (params.muted[layer]) return
+    // тон слоя: закрытый фильтр даёт тусклую вспышку
+    const tone = 0.45 + 0.75 * params.filter[layer]
+    const strength = (event.velocity ?? 0.8) * tone * (echo || 1)
+    if (layer === MELODY) {
+      const cell = slotOf(Math.floor(hop) + 1)
+      packets.push({
+        cell,
+        branch: branchFor(cell, pitchUnit(event.note)),
+        born: time,
+        strength,
+        // пакет бежит к телу за полдлины ноты, но не дольше 0.7 с
+        length: Math.min(0.7, Math.max(0.3, (event.duration || 0.5) * 0.5))
+      })
+      if (packets.length > PACKETS) packets.shift()
+    } else {
+      hits.push({ layer, born: time, strength, accent: !!event.accent })
+    }
+    if (!echo) wakeSide(layer, strength)
+    // эхо слоя: повторы через пунктирную восьмую, как у FeedbackDelay
+    const wet = params.echo[layer]
+    if (!echo && wet > 0.03 && layer !== TEXTURE) {
+      let gain = Math.min(0.9, wet * 1.8)
+      for (let k = 1; k <= 3 && gain > 0.08; k++) {
+        echoes.push({ at: time + k * params.delay, layer, event, gain })
+        gain *= params.feedback[layer] + 0.25
+      }
+    }
+  }
+
+  // сумма огибающих ударов слоя; затухание растёт с простором (реверб)
+  function sum(layer, decay) {
+    let value = 0
+    hits.forEach((hit) => {
+      if (hit.layer !== layer) return
+      value +=
+        hit.strength * (hit.accent ? 1.5 : 1) * envelope(time - hit.born, decay)
+    })
+    return Math.min(1.4, value)
+  }
+
+  function updateSound(dt, target, look) {
+    const sound = state.sound
+    const space = params.space
+    for (let i = echoes.length - 1; i >= 0; i--) {
+      if (echoes[i].at > time) continue
+      const { layer, event, gain } = echoes.splice(i, 1)[0]
+      pulse(layer, event, gain)
+    }
+    while (hits.length && time - hits[0].born > 4) hits.shift()
+
+    const kicks = hits.filter((hit) => hit.layer === KICK)
+    sound.thumpAge = kicks.length ? time - kicks[kicks.length - 1].born : 99
+    sound.thump = sum(KICK, 0.14 + space[KICK] * 0.6)
+    sound.spark = sum(PERC, 0.05 + space[PERC] * 0.25)
+    // новый узор искр на каждый удар перкуссии
+    const percs = hits.filter((hit) => hit.layer === PERC)
+    if (percs.length) sound.sparkSeed = percs[percs.length - 1].born * 7.31
+    sound.crackle = sum(TEXTURE, 0.06)
+    const crackles = hits.filter((hit) => hit.layer === TEXTURE)
+    if (crackles.length)
+      sound.crackleSeed = crackles[crackles.length - 1].born * 3.7
+    // бас и пэд: удар ноты плюс ровный уровень, пока нота звучит
+    const ease = 1 - Math.exp(-dt * 4)
+    sound.bass +=
+      (look.alive[BASS] * 0.6 + sum(BASS, 0.5 + space[BASS]) - sound.bass) *
+      ease
+    sound.pad += (look.alive[PAD] - sound.pad) * (1 - Math.exp(-dt * 1.5))
+    sound.chord = sum(PAD, 1.2 + space[PAD] * 2)
+
+    // пакеты мелодии: доля пути от кончика ветки до тела, потом подсветка тела
+    for (let i = packets.length - 1; i >= 0; i--) {
+      const packet = packets[i]
+      const progress = (time - packet.born) / packet.length
+      if (progress > 1 && !packet.arrived) {
+        packet.arrived = true
+        neurons[packet.cell].boost = Math.max(
+          neurons[packet.cell].boost,
+          packet.strength
+        )
+      }
+      if (progress > 1.6) packets.splice(i, 1)
+    }
+    sound.packets.forEach((value, i) => {
+      const packet = packets[i]
+      if (!packet) return value.set(-1, 0, -1, 0)
+      const progress = reducedMotion
+        ? 0.15
+        : Math.min(1, (time - packet.born) / packet.length)
+      const fade = reducedMotion ? envelope(time - packet.born, 0.8) : 1
+      value.set(packet.cell, packet.branch, progress, packet.strength * fade)
+    })
+  }
+
   function update(dt, { target, look, spikes }) {
     const motion = reducedMotion ? 0 : 1
     const live = look.wake * motion
     time += dt
+    params = target.sound && {
+      ...target.sound,
+      delay: (60 / target.bpm) * 0.75
+    }
 
     // один пролёт на такт; пока звучит, фаза подтягивается к такту звука
     hop += dt * (target.bpm / 240) * live
@@ -226,31 +477,14 @@ export function createChain({ tints, rest, reducedMotion }) {
     }
     lastBar = bar
 
-    // ноты: нейрон своего слоя на периферии; бочка ещё и толкает сцену
+    // фоновая активность: редкие слабые вспышки периферии, пока сеть не спит
     spikes.spikes.forEach((spike) => {
       if (seen.has(spike)) return
       seen.add(spike)
-      if (spike.layer === 0) state.kick = Math.max(state.kick, spike.strength)
-      let best = null
-      let bestScore = Infinity
-      side.forEach((n) => {
-        const d = n.s - state.travel
-        if (
-          n.layer !== spike.layer ||
-          d < 1.5 ||
-          d > 24 ||
-          time - n.fired < 0.9
-        )
-          return
-        const score = Math.abs(d - 9) + Math.random() * 5
-        if (score < bestScore) {
-          best = n
-          bestScore = score
-        }
-      })
-      if (best) best.fired = time
+      if (spike.strength < 0.5) wakeSide(spike.layer, spike.strength)
     })
-    state.kick *= Math.exp(-dt * 6)
+    if (params) updateSound(dt, target, look)
+    state.kick = state.sound.thump
     state.flash.age += dt
 
     chain.forEach((n) => {
@@ -295,6 +529,7 @@ export function createChain({ tints, rest, reducedMotion }) {
       if (n.age >= SIGNAL_TIME && n.age - dt < SIGNAL_TIME)
         neurons[slotOf(k)].boost = 1
       n.alive = 0.3 + 0.7 * look.alive[n.layer]
+      n.boost = Math.max(n.boost * Math.exp(-dt * 3), 0)
       n.tint.copy(tints[n.layer])
     })
 
@@ -306,5 +541,5 @@ export function createChain({ tints, rest, reducedMotion }) {
     state.target.copy(neurons[slotOf(index + 1)].center)
   }
 
-  return { neurons, state, update }
+  return { neurons, state, update, pulse }
 }

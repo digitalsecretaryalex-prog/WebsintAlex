@@ -15,9 +15,13 @@ import {
   NEURONS,
   NEURON_GLSL,
   AXON_GLSL,
+  SOUND_GLSL,
   createChain,
   neuronUniforms,
+  soundUniforms,
   writeNeurons,
+  writeSound,
+  branchOrder,
   bend
 } from './chain.js'
 import {
@@ -62,9 +66,11 @@ function somaRadius(z) {
 // Кожа нейрона: кольца точек вокруг линий скелета.
 // position: точка на оси кольца в единицах клетки; aSide1, aSide2: плоскость
 // кольца; aTube: угол, радиус, порядок от тела (0) к кончикам (1), длина вдоль;
-// aMeta: часть (0 тело, 1 дендрит, 2 аксон, 3 ореол ядра) и номер нейрона.
-function buildSkin() {
+// aMeta: часть (0 тело, 1 дендрит, 2 аксон, 3 ореол ядра), номер нейрона, ветка.
+// orders: порядок веток каждого нейрона снизу вверх (для нот мелодии)
+function buildSkin(orders) {
   const data = { position: [], aSide1: [], aSide2: [], aTube: [], aMeta: [] }
+  let branchId = -1
   function ring(cell, part, center, side1, side2, count, radius, order, along) {
     for (let j = 0; j < count; j++) {
       const angle = ((j + Math.random() * 0.6) / count) * Math.PI * 2
@@ -72,7 +78,7 @@ function buildSkin() {
       data.aSide1.push(side1.x, side1.y, side1.z)
       data.aSide2.push(side2.x, side2.y, side2.z)
       data.aTube.push(angle, radius, order, along)
-      data.aMeta.push(part, cell)
+      data.aMeta.push(part, cell, part === 1 ? branchId : -1)
     }
   }
   const axis = new THREE.Vector3()
@@ -90,7 +96,10 @@ function buildSkin() {
     // ореол ядра: несколько крупных мягких точек в центре
     ring(cell, 3, axis.set(0, 0, 0), across, up, 3, 0, 0, 0)
     // дендриты: у каждого третьего нейрона пирамидная форма
-    growSkeleton(cell % 3 === 1).forEach((branch) => {
+    const branches = growSkeleton(cell % 3 === 1)
+    orders.push(branchOrder(branches))
+    branches.forEach((branch, id) => {
+      branchId = id
       let side = null
       branch.points.forEach((point, k) => {
         const [side1, side2] = crossFrame(branch.tangents[k], side)
@@ -147,7 +156,7 @@ function buildSkin() {
   )
   geometry.setAttribute(
     'aMeta',
-    new THREE.Float32BufferAttribute(data.aMeta, 2)
+    new THREE.Float32BufferAttribute(data.aMeta, 3)
   )
   return geometry
 }
@@ -163,7 +172,6 @@ uniform float uWake;
 // 0 при prefers-reduced-motion: свет меняется, форма не дышит
 uniform float uMotion;
 uniform float uOpacity;
-uniform float uKick;
 uniform vec3 uColLow;
 uniform vec3 uColHigh;
 uniform vec3 uCursor;
@@ -172,11 +180,12 @@ uniform float uRepelStrength;
 attribute vec3 aSide1;
 attribute vec3 aSide2;
 attribute vec4 aTube;
-attribute vec2 aMeta;
+attribute vec3 aMeta;
 varying vec3 vColor;
 varying float vAlpha;
 ${SNOISE}
 ${AXON_GLSL}
+${SOUND_GLSL}
 void main() {
   int c = int(aMeta.y);
   float part = aMeta.x;
@@ -232,6 +241,17 @@ void main() {
     swell = step(0.0, imp) * head * 1.8 * uWake;
   }
 
+  // звук, в момент ноты (chain.js): бочка вздрагивает телом и ближними
+  // кольцами, перкуссия искрит кончиками, мелодия бежит пакетом по своей
+  // ветке к телу, бас светит и толстеет в аксоне, пэд окрашивает тело
+  float kick = uThump * (1.0 - order * 0.5);
+  float tipZone = part > 0.5 && part < 1.5 ? smoothstep(0.55, 0.95, order) : 0.0;
+  float spark = uSpark * tipZone * sparkPick(vec2(angle * 13.0 + along, aMeta.y + aMeta.z * 7.0));
+  float melody = part > 0.5 && part < 1.5 ? packetGlow(aMeta.y, aMeta.z, order) : 0.0;
+  float bassLine = part > 1.5 && part < 2.5 ? uBass : 0.0;
+  float padBody = part < 0.5 || part > 2.5 ? uPad * 0.45 + uChord * 0.5 : 0.0;
+  swell += kick * 0.35 + melody * 0.7 + bassLine * 0.45;
+
   // приём тоннеля: шум рябит радиус, угол дрожит и закручивается
   vec2 around = vec2(cos(angle), sin(angle));
   float wn = snoise(vec3(around * 1.3 + vec2(along * 0.7, 0.0), uTime * 0.15 + seed)) * 2.0;
@@ -241,7 +261,7 @@ void main() {
   angle += jitterAngle + ambientSwirl * uSwirl + uRoll * (part < 0.5 ? 1.0 : 0.35);
   // до рождения точки ходят по широкой спирали
   angle += (1.0 - shown) * 6.0;
-  float r = radius * (1.0 - wn * 0.07) * (1.0 + swell * uMotion) * (1.0 + uKick * 0.12 * (1.0 - order));
+  float r = radius * (1.0 - wn * 0.07) * (1.0 + swell * uMotion);
   r = mix(r * 3.0 + scale * 0.6, r, shown);
   vec3 dir = side1 * sin(angle) + side2 * cos(angle);
   vec3 world = base + dir * r;
@@ -255,14 +275,18 @@ void main() {
   // цвет эталона: индиго снизу слева, циан сверху справа
   float colMix = smoothstep(-1.2, 1.2, dir.y + dir.x * 0.5 + wn * 0.2);
   vColor = mix(uColLow, uColHigh, colMix) * uLight * (0.55 + 0.45 * look.y);
+  vColor = mix(vColor, uPadTint * uLight * 1.8, min(padBody, 1.0) * 0.4);
   // вспышка красит точки в цвет слоя, а не пересвечивает их в белое
   vColor = mix(vColor, uTint[c] * 0.9, min(glow, 1.0) * 0.85);
+  vColor += uKickTint * kick * 0.35 + uPercTint * spark * 1.5;
+  vColor += uMelodyTint * melody * 1.2 + uBassTint * bassLine * 0.35;
   vAlpha = shown * state.z * uOpacity;
-  float size = uSize;
+  float size = uSize * (1.0 + spark * 1.2 + melody * 0.6);
   if (part > 2.5) {
-    // ореол ядра: крупная тусклая точка, светится при вспышке
-    vAlpha = state.z * shown * (0.05 + 0.35 * min(glow, 1.0));
-    vColor = mix(uColHigh, uTint[c], 0.6) * (0.3 + glow);
+    // ореол ядра: крупная тусклая точка, светится при вспышке и ударе
+    float lit = min(glow + kick * 0.6 + padBody * 0.4, 1.0);
+    vAlpha = state.z * shown * (0.05 + 0.35 * lit);
+    vColor = mix(uColHigh, uTint[c], 0.6) * (0.3 + lit);
     size = 34.0;
   }
   gl_PointSize = max(1.0, size * scale / 0.22 * (10.0 / -mv.z));
@@ -274,10 +298,17 @@ export function createTunnel({ renderer, colors, reducedMotion, pointer }) {
   const camera = new THREE.PerspectiveCamera(45, 1, 0.05, 80)
   const pixel = renderer.getPixelRatio()
   const atmosphere = createAtmosphere(scene, REF, pixel)
+  const tints = colors.layers.map(colorToVec3)
+  const orders = []
+  const skin = buildSkin(orders)
   const chain = createChain({
-    tints: colors.layers.map(colorToVec3),
+    tints,
     rest: hexToVec3(REF.atmo),
-    reducedMotion
+    reducedMotion,
+    branchFor: (cell, unit) => {
+      const order = orders[cell]
+      return order[Math.round(unit * (order.length - 1))]
+    }
   })
 
   const uniforms = {
@@ -290,7 +321,7 @@ export function createTunnel({ renderer, colors, reducedMotion, pointer }) {
     uWake: { value: 0 },
     uMotion: { value: reducedMotion ? 0 : 1 },
     uOpacity: { value: REF.opacity * 0.6 },
-    uKick: { value: 0 },
+    ...soundUniforms(tints),
     uColLow: { value: hexToVec3(REF.low) },
     uColHigh: { value: hexToVec3(REF.high) },
     uCursor: { value: new THREE.Vector3(0, 0, 99) },
@@ -298,7 +329,7 @@ export function createTunnel({ renderer, colors, reducedMotion, pointer }) {
     uRepelStrength: { value: REF.pointerStrength }
   }
   const neurons = new THREE.Points(
-    buildSkin(),
+    skin,
     new THREE.ShaderMaterial({
       uniforms,
       vertexShader: VERTEX,
@@ -337,6 +368,7 @@ export function createTunnel({ renderer, colors, reducedMotion, pointer }) {
     clock += dt * live
     chain.update(dt, { target, look, spikes })
     writeNeurons(chain.neurons, uniforms)
+    writeSound(chain.state.sound, uniforms)
 
     // свет: во сне слабый и медленно дышит, со звуком в полную силу
     const breath = 1 + (1 - wake) * 0.14 * Math.sin(time * 0.9)
@@ -348,7 +380,6 @@ export function createTunnel({ renderer, colors, reducedMotion, pointer }) {
     uniforms.uSwirl.value = REF.swirl * (1 + look.energy * wake * 0.75)
     roll += dt * live * (REF.spin + look.energy * 0.05)
     uniforms.uRoll.value = roll
-    uniforms.uKick.value = chain.state.kick * live
     uniforms.uColLow.value.copy(lowRef).lerp(grey, (1 - look.saturation) * 0.6)
     uniforms.uColHigh.value
       .copy(highRef)
@@ -372,6 +403,10 @@ export function createTunnel({ renderer, colors, reducedMotion, pointer }) {
     gaze.lerp(focus, 1 - Math.exp(-dt * 2.5))
     view.set(gaze.x + mouse.x * REF.steer, gaze.y + mouse.y * REF.steer, gaze.z)
     camera.lookAt(view)
+    // бочка толкает камеру к импульсу и чуть сужает взгляд: удар виден телом
+    const thump = chain.state.sound.thump * live
+    camera.position.lerp(view, Math.min(0.06, thump * 0.04))
+    camera.fov = 45 - thump * 1.4
 
     // при открытой панели картинка выше: цепь не уходит под капсулы
     spread += ((target.panelHidden ? 1 : 0) - spread) * (1 - Math.exp(-dt * 2))
@@ -384,7 +419,15 @@ export function createTunnel({ renderer, colors, reducedMotion, pointer }) {
     uniforms.uCursor.value.lerp(hit, 0.12)
     uniforms.uActivity.value = pointer.activity
 
-    atmosphere.update({ clock, wake, breath, camera, flash: chain.state.flash })
+    atmosphere.update({
+      clock,
+      wake,
+      breath,
+      camera,
+      flash: chain.state.flash,
+      sound: chain.state.sound,
+      padTint: tints[3]
+    })
   }
 
   function frame() {
@@ -406,5 +449,12 @@ export function createTunnel({ renderer, colors, reducedMotion, pointer }) {
     atmosphere.resize(width, h)
   }
 
-  return { scene, camera, update, resize, ownBackdrop: true }
+  return {
+    scene,
+    camera,
+    update,
+    resize,
+    pulse: chain.pulse,
+    ownBackdrop: true
+  }
 }

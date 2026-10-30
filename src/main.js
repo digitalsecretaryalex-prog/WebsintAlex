@@ -27,7 +27,14 @@ import { initIdeas } from './ideas.js'
 const RASTER_ROWS = ['kick', 'perc']
 const layerControls = {}
 const masterControls = {}
-const spaceValues = {}
+// Параметры слоёв для визуала: что крутят ручки, то и видно у нейронов
+const sound = {
+  filter: layers.map((layer) => layer.filter.frequency),
+  echo: layers.map((layer) => layer.feedbackDelay.wet),
+  space: layers.map((layer) => layer.reverb.wet),
+  pan: layers.map((layer) => layer.channel.pan),
+  feedback: layers.map((layer) => layer.feedbackDelay.feedback)
+}
 let transport = null
 let sequencer = null
 let brain = null
@@ -179,7 +186,7 @@ function initRaster() {
 
 function initLayers() {
   const container = document.getElementById('layers')
-  layers.forEach((layer) => {
+  layers.forEach((layer, index) => {
     const strip = document.createElement('section')
     strip.className = `Layer is-${layer.id}`
     strip.setAttribute('aria-label', layer.name)
@@ -198,7 +205,6 @@ function initLayers() {
     const knobs = {}
     layerKnobs.forEach((knob) => {
       const value = knobDefault(layer, knob.param)
-      if (knob.param === 'space') spaceValues[layer.id] = value
       knobs[knob.param] = createKnob(
         {
           ...knob,
@@ -207,7 +213,7 @@ function initLayers() {
           value
         },
         (next) => {
-          if (knob.param === 'space') spaceValues[layer.id] = next
+          sound[knob.param][index] = next
           act(() => audio.setLayerParam(layer.id, knob.param, next))
         }
       )
@@ -469,8 +475,12 @@ function onAudioEvent(event) {
     sequencer.setStep(event.step)
     ideas?.onStep(event.step)
   }
+  // нота приходит через Tone.getDraw в момент звука: свет совпадает с ударом
   if (event.type === 'note' && brain) {
-    brain.pulse(layers.findIndex((layer) => layer.id === event.layer))
+    brain.pulse(
+      layers.findIndex((layer) => layer.id === event.layer),
+      event
+    )
   }
 }
 
@@ -526,6 +536,11 @@ function initKeyboard() {
   })
 }
 
+// частота ручки тона → 0..1 по логарифму, как крутится ручка
+function toLogUnit(hz, { min, max }) {
+  return Math.log(hz / min) / Math.log(max / min)
+}
+
 // уровень в дБ → 0..1 для визуала
 function toUnit(db) {
   return Number.isFinite(db) ? Math.min(1, Math.max(0, (db + 45) / 35)) : 0
@@ -544,7 +559,6 @@ function updateLoop(now) {
     masterControls.volume.setLevel(levels.master)
   }
   if (brain) {
-    const spaces = Object.values(spaceValues)
     const playing = audio.isPlaying()
     const sounding = audio.isSounding()
     const on = layers.map(
@@ -558,7 +572,13 @@ function updateLoop(now) {
       level: layers.map((layer) => toUnit(levels?.[layer.id])),
       bpm: playing ? audio.getTempo() : 84,
       djFilter: djFilterValue,
-      space: spaces.reduce((sum, value) => sum + value, 0) / spaces.length,
+      space:
+        sound.space.reduce((sum, value) => sum + value, 0) / sound.space.length,
+      sound: {
+        ...sound,
+        filter: sound.filter.map((hz) => toLogUnit(hz, layerKnobs[0])),
+        muted: layers.map((layer) => audio.getLayerState(layer.id).isMuted)
+      },
       part,
       master,
       playing,

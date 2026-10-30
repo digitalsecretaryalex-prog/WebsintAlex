@@ -98,6 +98,7 @@ function initPerc(output) {
       }
       if (variation.ticks.includes(step)) {
         tick.triggerAttackRelease(perc.tickNote, '32n', time, perc.velocity)
+        notify({ type: 'note', layer: 'perc', velocity: 1, accent: true }, time)
       }
     },
     STEPS,
@@ -120,7 +121,17 @@ function initPartLayer(layer, synth, output) {
         time,
         layer.velocity
       )
-      notify({ type: 'note', layer: layer.id, velocity: layer.velocity }, time)
+      // высота и длина ноты нужны визуалу: мелодия бежит по своей ветке
+      notify(
+        {
+          type: 'note',
+          layer: layer.id,
+          velocity: layer.velocity,
+          note: note.noteName,
+          duration: Tone.Time(note.duration).toSeconds()
+        },
+        time
+      )
     }, variation.part).start(0)
     part.loop = true
     part.loopEnd = layer.loop
@@ -160,7 +171,9 @@ function initTexture(output) {
       const layerState = state.texture
       const chance = texture.variations[layerState.variation].crackle
       if (layerState.isOn && Math.random() < chance) {
-        crackle.triggerAttackRelease('64n', time, quiet + Math.random() * (loud - quiet))
+        const velocity = quiet + Math.random() * (loud - quiet)
+        crackle.triggerAttackRelease('64n', time, velocity)
+        notify({ type: 'note', layer: 'texture', velocity }, time)
       }
     },
     STEPS,
@@ -211,7 +224,9 @@ export function ensureStarted() {
 async function startAudio() {
   // буфер побольше: тяжёлая графика не рвёт звук. Задержка не мешает,
   // смены всё равно ждут начала такта
-  Tone.setContext(new Tone.Context({ latencyHint: 'playback', lookAhead: 0.15 }))
+  Tone.setContext(
+    new Tone.Context({ latencyHint: 'playback', lookAhead: 0.15 })
+  )
   await Tone.start()
   const transport = Tone.getTransport()
   transport.bpm.value = parts[currentPart].bpm
@@ -319,8 +334,8 @@ function applyLayer(id, time) {
 }
 
 export function getLayerState(id) {
-  const { isOn, wantOn, variation, wantVariation } = state[id]
-  return { isOn, wantOn, variation, wantVariation }
+  const { isOn, wantOn, variation, wantVariation, isMuted } = state[id]
+  return { isOn, wantOn, variation, wantVariation, isMuted }
 }
 
 export function toggleLayer(id) {
@@ -433,9 +448,11 @@ export function setMasterParam(param, value, time) {
 }
 
 // Позиция транспорта в тактах, для визуала (круг «Дыхание»)
+// по слышимому времени: transport.ticks идёт с запасом lookAhead
+// и опережал бы звук на 0.15 с
 export function getBarPosition() {
   const transport = Tone.getTransport()
-  return transport.ticks / (transport.PPQ * 4)
+  return transport.getTicksAtTime(Tone.immediate()) / (transport.PPQ * 4)
 }
 
 export function getLevels() {

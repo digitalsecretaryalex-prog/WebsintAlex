@@ -101,6 +101,8 @@ export function initVisuals(container, palette, reducedMotion, mode, ground) {
     master: 0,
     part: 0,
     playing: false,
+    // параметры слоёв: тон 0..1, эхо, простор, панорама, обратная связь эха, Mute
+    sound: null,
     // sounding: звук реально идёт (транспорт запущен, контекст работает)
     sounding: false,
     // beat: позиция в тактах, пока звучит, иначе null
@@ -155,11 +157,11 @@ export function initVisuals(container, palette, reducedMotion, mode, ground) {
     Object.assign(target, next)
   }
 
-  // Нота слоя: спайк в его популяции (если не в рефрактерном периоде)
-  function pulse(layer) {
-    if (reducedMotion) return
-    const fired = spikes.fire(layer)
-    view?.pulse?.(layer, fired)
+  // Нота слоя: спайк в его популяции (если не в рефрактерном периоде).
+  // Виды цепи получают саму ноту: слой, силу, высоту, длину, акцент
+  function pulse(layer, event = {}) {
+    if (!reducedMotion) spikes.fire(layer)
+    view?.pulse?.(layer, event)
   }
 
   let lastTime = performance.now()

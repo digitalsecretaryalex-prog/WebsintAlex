@@ -17,7 +17,11 @@ import {
   NEURONS,
   NEURON_GLSL,
   AXON_GLSL,
+  SOUND_GLSL,
   createChain,
+  soundUniforms,
+  writeSound,
+  branchOrder,
   neuronUniforms,
   writeNeurons,
   bend
@@ -57,15 +61,17 @@ const AXON_ROWS = 130
 // Кожа: сетка точек. position: направление на сфере (тело) или точка
 // скелета (лента); aSide1: поперёк ленты, aSide2: нормаль ленты;
 // aTube: для тела широта и долгота 0..1, для ленты место поперёк -1..1 и
-// ширина; дальше порядок от тела и длина вдоль; aMeta: часть и номер нейрона.
-function buildMembrane() {
+// ширина; дальше порядок от тела и длина вдоль; aMeta: часть, номер нейрона,
+// ветка. orders: порядок веток каждого нейрона снизу вверх (для нот мелодии)
+function buildMembrane(orders) {
   const data = { position: [], aSide1: [], aSide2: [], aTube: [], aMeta: [] }
+  let branchId = -1
   function push(cell, part, point, side1, side2, tube) {
     data.position.push(point.x, point.y, point.z)
     data.aSide1.push(side1.x, side1.y, side1.z)
     data.aSide2.push(side2.x, side2.y, side2.z)
     data.aTube.push(...tube)
-    data.aMeta.push(part, cell)
+    data.aMeta.push(part, cell, part === 1 ? branchId : -1)
   }
   const point = new THREE.Vector3()
   const none = new THREE.Vector3()
@@ -89,7 +95,10 @@ function buildMembrane() {
     }
     // дендриты: ленты, которые медленно перекручиваются вдоль ветки
     const cols = cell < CHAIN ? 5 : 3
-    growSkeleton(cell % 3 === 1).forEach((branch) => {
+    const branches = growSkeleton(cell % 3 === 1)
+    orders.push(branchOrder(branches))
+    branches.forEach((branch, id) => {
+      branchId = id
       let side = null
       branch.points.forEach((at, k) => {
         const [side1, side2] = crossFrame(branch.tangents[k], side)
@@ -137,7 +146,7 @@ function buildMembrane() {
   )
   geometry.setAttribute(
     'aMeta',
-    new THREE.Float32BufferAttribute(data.aMeta, 2)
+    new THREE.Float32BufferAttribute(data.aMeta, 3)
   )
   return geometry
 }
@@ -161,11 +170,12 @@ uniform float uRepelStrength;
 attribute vec3 aSide1;
 attribute vec3 aSide2;
 attribute vec4 aTube;
-attribute vec2 aMeta;
+attribute vec3 aMeta;
 varying vec3 vColor;
 varying float vAlpha;
 ${SNOISE}
 ${AXON_GLSL}
+${SOUND_GLSL}
 // холмы эталона: две октавы шума, катятся вдоль второй координаты
 float hills(vec3 p, float flow) {
   float wn = snoise(vec3(p.x, p.y + flow, p.z + uTime * 0.15)) * 2.0;
@@ -191,6 +201,12 @@ void main() {
   // вспышка: волна от кончиков к телу, потом горит тело
   float front = 1.0 - age / 0.3;
   float flare = smoothstep(0.22, 0.34, age) * exp(-max(age - 0.34, 0.0) * 1.6);
+  // звук (chain.js): у каждого слоя своя реакция в момент ноты
+  float kick = 0.0;
+  float spark = 0.0;
+  float melody = 0.0;
+  float bassLine = 0.0;
+  float padBody = 0.0;
 
   if (part < 0.5) {
     // мембрана тела; холмы катятся от задней точки к аксону
@@ -199,7 +215,11 @@ void main() {
     // круг от входа дендритов по мембране, как кольца от курсора в эталоне
     float fromBack = acos(clamp(dir.z, -1.0, 1.0));
     float ripple = exp(-pow((fromBack - (age - 0.18) * 9.0) / 0.3, 2.0)) * step(0.18, age) * exp(-age * 1.2);
-    float r = 1.0 + wn * 0.05 * uWave + (ripple * 0.16 + flare * 0.1 + look.z * 0.06) * uMotion;
+    // бочка: мембрана вздыхает, от задней точки бегут кольца, как от курсора
+    float kickRing = exp(-pow((fromBack - uThumpAge * 7.0) / 0.32, 2.0)) * exp(-uThumpAge * 2.4);
+    kick = uThump * 0.6 + kickRing * 0.8;
+    padBody = uPad * 0.45 + uChord * 0.5;
+    float r = 1.0 + wn * 0.05 * uWave + (ripple * 0.16 + flare * 0.1 + look.z * 0.06 + uThump * 0.06 + kickRing * 0.12) * uMotion;
     // рождение: лист точек под телом сворачивается в шар
     shown = smoothstep(0.0, 0.5, grow);
     float spread = aTube.x * 3.14159 * 0.9;
@@ -215,7 +235,11 @@ void main() {
     wn = hills(vec3(w * 0.6 + seed, along * 0.9, seed), uStream * 0.3);
     float wave = exp(-pow((order - front) * 6.0, 2.0)) * step(age, 0.45);
     float width = aTube.y * 1.8 * scale;
-    float lift = (wn * 0.05 + wave * 0.5 * uMotion) * scale * shown;
+    // перкуссия: кончики лент вспыхивают и подпрыгивают; мелодия: горб бежит к телу
+    spark = uSpark * smoothstep(0.55, 0.95, order) * sparkPick(vec2(w * 5.0 + along * 13.0, aMeta.y + aMeta.z * 7.0));
+    melody = packetGlow(aMeta.y, aMeta.z, order);
+    kick = uThump * (1.0 - order) * 0.5;
+    float lift = (wn * 0.05 + (wave * 0.5 + spark * 0.5 + melody * 0.8 + kick * 0.3) * uMotion) * scale * shown;
     vec3 base = center + position * scale * shown;
     world = base + aSide1 * w * width + aSide2 * lift;
     glow = wave + flare * (1.0 - order) * 0.6 + look.z * (1.0 - order) * 0.5;
@@ -241,8 +265,10 @@ void main() {
     float swell = exp(-pow(behind * 12.0, 2.0));
     float wake = step(0.0, behind) * sin(behind * 70.0) * exp(-behind * 7.0) * 0.35;
     float carry = step(0.0, imp) * uWake;
+    // бас: лента аксона шире и светится, пока звучит нота
+    bassLine = uBass;
     float lift = (wn * 0.04 + (swell * 1.1 + wake) * carry) * scale;
-    world = base + side * w * scale * 0.32 * (1.0 + swell * carry * 0.8) + normal * lift;
+    world = base + side * w * scale * 0.32 * (1.0 + swell * carry * 0.8 + bassLine * 0.6 * uMotion) + normal * lift;
     glow = (swell + abs(wake) * 0.8) * carry;
   }
 
@@ -255,10 +281,14 @@ void main() {
   // цвет эталона: тёмный в ложбинах, мятный на гребнях
   float colMix = smoothstep(-2.6, 2.6, wn * 1.3 + glow * 2.0);
   vColor = mix(uColLow, uColHigh, colMix) * uLight * (0.5 + 0.5 * look.y);
+  vColor = mix(vColor, uPadTint * uLight * 1.8, min(padBody, 1.0) * 0.4);
   // вспышка красит точки в цвет слоя, а не пересвечивает их в белое
   vColor = mix(vColor, uTint[c] * 0.9, min(glow, 1.0) * 0.85);
+  vColor += uKickTint * kick * 0.4 + uPercTint * spark * 1.5;
+  vColor += uMelodyTint * melody * 1.2 + uBassTint * bassLine * 0.35;
   vAlpha = shown * state.z * uOpacity * (0.4 + 0.6 * shown);
-  gl_PointSize = max(1.0, uSize * scale / 0.22 * (10.0 / -mv.z));
+  float size = uSize * (1.0 + spark * 1.2 + melody * 0.6);
+  gl_PointSize = max(1.0, size * scale / 0.22 * (10.0 / -mv.z));
   gl_Position = projectionMatrix * mv;
 }`
 
@@ -267,10 +297,17 @@ export function createWave({ renderer, colors, reducedMotion, pointer }) {
   const camera = new THREE.PerspectiveCamera(45, 1, 0.05, 120)
   const pixel = renderer.getPixelRatio()
   const atmosphere = createAtmosphere(scene, REF, pixel)
+  const tints = colors.layers.map(colorToVec3)
+  const orders = []
+  const membrane = buildMembrane(orders)
   const chain = createChain({
-    tints: colors.layers.map(colorToVec3),
+    tints,
     rest: hexToVec3(REF.high),
-    reducedMotion
+    reducedMotion,
+    branchFor: (cell, unit) => {
+      const order = orders[cell]
+      return order[Math.round(unit * (order.length - 1))]
+    }
   })
 
   const uniforms = {
@@ -282,6 +319,7 @@ export function createWave({ renderer, colors, reducedMotion, pointer }) {
     uLight: { value: 1 },
     uWake: { value: 0 },
     uMotion: { value: reducedMotion ? 0 : 1 },
+    ...soundUniforms(tints),
     // точек меньше, чем в листе эталона, поэтому каждая плотнее
     uOpacity: { value: REF.opacity * 2.2 },
     uColLow: { value: hexToVec3(REF.low) },
@@ -291,7 +329,7 @@ export function createWave({ renderer, colors, reducedMotion, pointer }) {
     uRepelStrength: { value: REF.pointerStrength }
   }
   const neurons = new THREE.Points(
-    buildMembrane(),
+    membrane,
     new THREE.ShaderMaterial({
       uniforms,
       vertexShader: VERTEX,
@@ -333,6 +371,7 @@ export function createWave({ renderer, colors, reducedMotion, pointer }) {
     clock += dt * live
     chain.update(dt, { target, look, spikes })
     writeNeurons(chain.neurons, uniforms)
+    writeSound(chain.state.sound, uniforms)
 
     // холмы текут в темп; волна выше с громкостью и по мере погружения
     stream += dt * REF.flow * 2 * (target.bpm / 84) * live
@@ -373,6 +412,10 @@ export function createWave({ renderer, colors, reducedMotion, pointer }) {
     gaze.lerp(focus, 1 - Math.exp(-dt * 2.5))
     camera.up.set(0, 1, 0)
     camera.lookAt(gaze.x + mouse.x * 0.3, gaze.y, gaze.z)
+    // бочка толкает камеру вперёд и чуть сужает взгляд
+    const thump = chain.state.sound.thump * live
+    camera.position.lerp(gaze, Math.min(0.06, thump * 0.04))
+    camera.fov = 45 - thump * 1.4
 
     spread += ((target.panelHidden ? 1 : 0) - spread) * (1 - Math.exp(-dt * 2))
     frame()
@@ -385,7 +428,15 @@ export function createWave({ renderer, colors, reducedMotion, pointer }) {
     uniforms.uCursor.value.lerp(hit, 0.12)
     uniforms.uActivity.value = pointer.activity
 
-    atmosphere.update({ clock, wake, breath, camera, flash: chain.state.flash })
+    atmosphere.update({
+      clock,
+      wake,
+      breath,
+      camera,
+      flash: chain.state.flash,
+      sound: chain.state.sound,
+      padTint: tints[3]
+    })
   }
 
   function frame() {
@@ -407,5 +458,12 @@ export function createWave({ renderer, colors, reducedMotion, pointer }) {
     atmosphere.resize(width, h)
   }
 
-  return { scene, camera, update, resize, ownBackdrop: true }
+  return {
+    scene,
+    camera,
+    update,
+    resize,
+    pulse: chain.pulse,
+    ownBackdrop: true
+  }
 }
