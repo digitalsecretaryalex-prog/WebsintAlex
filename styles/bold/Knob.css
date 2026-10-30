@@ -1,4 +1,5 @@
 .Knob {
+  position: relative;
   width: var(--knob);
   height: var(--knob);
   flex: none;
@@ -56,4 +57,9 @@
 
 .Knob.isLarge .KnobMark {
   stroke-width: 1;
+}
+
+/* подпись значения видна только в вариантах стекла и металла */
+.KnobReadout {
+  display: none;
 }

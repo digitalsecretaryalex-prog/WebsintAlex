@@ -6,6 +6,7 @@ import {
   layerKnobs,
   volumeRange,
   tempoRange,
+  swingRange,
   keys
 } from './settings.js'
 import * as audio from './audio.js'
@@ -46,12 +47,63 @@ let mini = null
 let tempoValue = parts[0].bpm
 const params = new URLSearchParams(location.search)
 // ?ui=metal: главные кнопки в жидком металле (src/metal.js)
-const isMetal = params.get('ui') === 'metal'
+// ?ui=glass: светлые стеклянные плитки, ?ui=liquid: всё в жидком металле
+const ui = params.get('ui')
+const isMetal = ui === 'metal'
+const isDressed = ui === 'glass' || ui === 'liquid'
+let swingKnob = null
 
 function knobDefault(layer, param) {
   if (param === 'filter') return layer.filter.frequency
   if (param === 'echo') return layer.feedbackDelay.wet
+  if (param === 'pan') return layer.channel.pan
   return layer.reverb.wet
+}
+
+const KNOB_UNITS = { filter: 'Гц', pan: 'панорама' }
+
+// Варианты стекла и металла: класс на body и металл на нужных элементах.
+// Металл рисует один общий холст (src/liquid.js)
+const DRESS = {
+  glass: [
+    ['.PlayButton', 'round'],
+    ['.ResetButton', 'round'],
+    ['.PartButton', 'round'],
+    ['.Master .Knob.isLarge', 'round'],
+    ['.PanelBack', 'pill'],
+    ['.MuteButton', 'round']
+  ],
+  liquid: [
+    ['.PlayButton', 'round'],
+    ['.ResetButton', 'round'],
+    ['.PartButton', 'round'],
+    ['.Knob', 'round'],
+    ['.LaunchButton', 'round'],
+    ['.MuteButton', 'round'],
+    ['.VariationButton', 'pill'],
+    ['.PanelBack', 'pill'],
+    ['.StepperButton', 'round']
+  ]
+}
+
+let liquid = null
+function dress(...rules) {
+  if (!isDressed) return
+  const list = rules.length ? rules : DRESS[ui]
+  import('./liquid.js').then((module) => {
+    liquid = module
+    list.forEach(([selector, shape]) =>
+      document
+        .querySelectorAll(selector)
+        .forEach((element) => module.addLiquidSkin(element, shape))
+    )
+  })
+}
+
+function initDress() {
+  if (!isDressed) return
+  document.body.classList.add(ui === 'glass' ? 'isGlass' : 'isLiquid')
+  dress()
 }
 
 function metalize(...buttons) {
@@ -140,6 +192,7 @@ function reset() {
     masterControls.djFilter.setValue(part.djFilter)
     masterControls.echo.setValue(master.feedbackDelay.wet)
     masterControls.volume.setValue(master.channel.volume)
+    swingKnob.setValue(0)
     transport.tempo.setValue(part.bpm)
     selectPart(partIndex)
   })
@@ -163,10 +216,17 @@ function initTransport() {
     'Сбросить настройки части',
     reset
   )
+  swingKnob = createKnob(
+    { label: 'Свинг', unit: '%', ...swingRange, value: 0 },
+    (amount) => act(() => audio.setSwing(amount))
+  )
+  const swing = withIcon(swingKnob.element, 'swing')
+  swing.classList.add('isExtra')
   partButtons.setState(0, 0)
   element.append(
     play.element,
     withIcon(tempo.element, 'tempo'),
+    swing,
     partButtons.element,
     resetButton.element
   )
@@ -209,7 +269,7 @@ function initLayers() {
         {
           ...knob,
           label: `${layer.name}: ${knob.label}`,
-          unit: knob.param === 'filter' ? 'Гц' : '%',
+          unit: KNOB_UNITS[knob.param] || '%',
           value
         },
         (next) => {
@@ -217,7 +277,10 @@ function initLayers() {
           act(() => audio.setLayerParam(layer.id, knob.param, next))
         }
       )
-      knobRow.appendChild(withIcon(knobs[knob.param].element, knob.icon))
+      const wrapper = withIcon(knobs[knob.param].element, knob.icon)
+      // панорама есть только в вариантах стекла и металла
+      if (knob.extra) wrapper.classList.add('isExtra')
+      knobRow.appendChild(wrapper)
     })
 
     const channelRow = document.createElement('div')
@@ -310,9 +373,11 @@ const VIEWS = [
 ]
 
 // Вид берётся из адреса (?view=field), чтобы ссылка открывала тот же вид
+// у вариантов свой вид по умолчанию: стекло синее, как тоннель
 function readView() {
   const view = new URLSearchParams(location.search).get('view')
-  return VIEWS.some(({ id }) => id === view) ? view : 'field'
+  const fallback = { glass: 'tunnel', liquid: 'wave' }[ui] || 'field'
+  return VIEWS.some(({ id }) => id === view) ? view : fallback
 }
 
 const BACKGROUND_LIST = [
@@ -400,6 +465,7 @@ function initScreen() {
       // поверх интерфейса: раскрытые ряды не уходят под капсулы
       document.body.appendChild(switches)
       metalize(toggle.element, panelToggle.element)
+      dress(['.SwitchesToggle', 'round'])
     })
     .catch((error) => console.warn('3D-нейроны не загрузились', error))
 }
@@ -561,6 +627,14 @@ function updateLoop(now) {
   if (brain) {
     const playing = audio.isPlaying()
     const sounding = audio.isSounding()
+    // металл течёт быстрее, пока играет звук
+    liquid?.setLiquidSpeed(
+      matchMedia('(prefers-reduced-motion: reduce)').matches
+        ? 0
+        : sounding
+          ? 1
+          : 0.6
+    )
     const on = layers.map(
       (layer) => audio.getLayerState(layer.id).isOn && playing
     )
@@ -599,6 +673,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initLayers()
   initMaster()
   initMini()
+  initDress()
   initKeyboard()
   requestAnimationFrame(updateLoop)
   // заставка: ?intro=0 пропускает её

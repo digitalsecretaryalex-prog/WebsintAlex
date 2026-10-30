@@ -1,0 +1,191 @@
+/* Общее для вариантов ?ui=glass и ?ui=liquid.
+   1. Жидкий металл (src/liquid.js): холст металла лежит под элементом
+      целиком, поверх него грань (::after), отступ грани = толщина кольца.
+   2. Детали как у железного синтезатора: подпись значения под ручкой,
+      шкала из 11 рисок вокруг ручки, шкала у движка, уровень лесенкой
+      светодиодов. Цвета рисок и подписей задают Glass.css и Liquid.css */
+.hasLiquid {
+  --ring: 2.5px;
+  --face: linear-gradient(180deg, #202020 0%, #000000 100%);
+  position: relative;
+  isolation: isolate;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.3),
+    0 9px 9px rgba(0, 0, 0, 0.12),
+    0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+.LiquidSkin {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+.hasLiquid::after {
+  content: '';
+  position: absolute;
+  inset: var(--ring);
+  z-index: 1;
+  border-radius: inherit;
+  background: var(--face);
+  pointer-events: none;
+  transition: background-color 200ms linear;
+}
+
+.hasLiquid > .Icon,
+.hasLiquid > svg,
+.hasLiquid > .Dots,
+.hasLiquid > .PanelBackText {
+  position: relative;
+  z-index: 2;
+}
+
+/* кнопки-капсулы */
+.VariationButton.hasLiquid,
+.PanelBack.hasLiquid {
+  border-radius: 999px;
+}
+
+/* нажатие: грань проседает, как в liquid-metal-button */
+.hasLiquid:active::after {
+  box-shadow:
+    inset 0 2px 4px rgba(0, 0, 0, 0.4),
+    inset 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+/* без шейдера кольцо из градиента */
+.isLiquidFallback .hasLiquid {
+  background: conic-gradient(
+    from 45deg,
+    #f2f2f2,
+    #6f6f6f,
+    #e6e6e6,
+    #575757,
+    #f2f2f2
+  );
+}
+
+/* ручка меньше, чтобы между соседями влезла шкала */
+:is(.isGlass, .isLiquid) {
+  --knob: clamp(30px, 2.3vw, 34px);
+}
+
+:is(.isGlass, .isLiquid) .WithIcon.isExtra {
+  display: flex;
+}
+
+:is(.isGlass, .isLiquid) .LayerKnobs {
+  gap: 9px;
+}
+
+:is(.isGlass, .isLiquid) .LayerKnobs .WithIcon {
+  gap: 20px;
+}
+
+:is(.isGlass, .isLiquid) .LayerKnobs .Icon {
+  --icon: 13px;
+}
+
+/* у малой ручки выхода подпись между ручкой и значком */
+:is(.isGlass, .isLiquid) .Master .WithIcon:has(.Knob:not(.isLarge)) {
+  gap: 20px;
+}
+
+.KnobReadout {
+  position: absolute;
+  top: calc(100% + 5px);
+  left: 50%;
+  z-index: 2;
+  transform: translateX(-50%);
+  color: var(--readout);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+:is(.isGlass, .isLiquid) .KnobReadout {
+  display: block;
+}
+
+:is(.isGlass, .isLiquid) .Master .Knob.isLarge .KnobReadout {
+  top: 50%;
+  transform: translate(-50%, 70%);
+  font-size: 13px;
+}
+
+/* 11 рисок на дуге 270°, как ход самой ручки (KNOB_ANGLE = 135) */
+:is(.isGlass, .isLiquid) .Knob::before {
+  --tick-length: 3px;
+  content: '';
+  position: absolute;
+  inset: -5px;
+  border-radius: 50%;
+  background: repeating-conic-gradient(
+    from -135.75deg,
+    var(--tick) 0 1.5deg,
+    transparent 1.5deg 27deg
+  );
+  mask:
+    radial-gradient(
+      closest-side,
+      transparent calc(100% - var(--tick-length)),
+      #000000 calc(100% - var(--tick-length))
+    ),
+    conic-gradient(from -137deg, #000000 0 274deg, transparent 0);
+  mask-composite: intersect;
+  pointer-events: none;
+}
+
+/* в капсуле соседи близко: шкала теснее */
+:is(.isGlass, .isLiquid) .LayerKnobs .Knob::before {
+  --tick-length: 2.5px;
+  inset: -4px;
+}
+
+:is(.isGlass, .isLiquid) .Knob.isLarge::before {
+  --tick-length: 6px;
+  inset: -12px;
+  background: repeating-conic-gradient(
+    from -135.5deg,
+    var(--tick) 0 1deg,
+    transparent 1deg 13.5deg
+  );
+}
+
+/* шкала движка: 11 рисок слева от паза, на ходе ручки */
+:is(.isGlass, .isLiquid) .Fader::before {
+  content: '';
+  position: absolute;
+  top: 5px;
+  bottom: 5px;
+  left: -9px;
+  width: 7px;
+  background: linear-gradient(var(--tick) 0 1px, transparent 1px) 0 0 / 100%
+    calc((100% - 1px) / 10) repeat-y;
+  pointer-events: none;
+}
+
+/* уровень лесенкой: тёмные ячейки видны всегда, горят снизу вверх */
+:is(.isGlass, .isLiquid) .FaderMeter {
+  border-radius: 1px;
+  background-color: var(--meter-off);
+  mask: repeating-linear-gradient(to top, #000000 0 3px, transparent 3px 5px);
+}
+
+:is(.isGlass, .isLiquid) .FaderMeter::after {
+  border-radius: 0;
+  background: linear-gradient(
+    to top,
+    var(--layer, var(--meter-on)) 0%,
+    color-mix(in oklab, var(--layer, var(--meter-on)), white 45%) 100%
+  );
+}

@@ -1,0 +1,248 @@
+/* Вариант «Жидкий металл» (?ui=liquid): чёрное железо, у каждой ручки и
+   кнопки кольцо жидкого металла (src/liquid.js), как у liquid-metal-button.
+   Цвет слоя живёт в светодиодах: шкала ручки, полоска капсулы, нажатый шаг,
+   лесенка уровня. Контраст подписи #b8bec6 к чёрному 10:1 */
+body.isLiquid {
+  --liquid-bg: #050507;
+  --liquid-face: linear-gradient(180deg, #232326 0%, #000000 100%);
+  --liquid-label: #b8bec6;
+  --liquid-ink: #eef1f5;
+  --chrome: linear-gradient(90deg, #f4f6fa, #8c94a4 40%, #ffffff 55%, #6b7384);
+  --color-void: #050507;
+  --color-screen: #050507;
+  --color-focus: #ffffff;
+  --tick: rgba(238, 241, 245, 0.32);
+  --readout: var(--liquid-label);
+  --meter-off: rgba(255, 255, 255, 0.07);
+  --meter-on: #9fb4ff;
+  background-color: var(--liquid-bg);
+}
+
+body.isLiquid .Screen {
+  background-color: var(--liquid-bg);
+}
+
+body.isLiquid .hasLiquid {
+  --face: var(--liquid-face);
+  color: var(--liquid-label);
+}
+
+/* Капсулы: чёрное стекло, тонкая светлая кромка, светодиод слоя сверху,
+   два винта снизу, как на передней панели */
+body.isLiquid .Layer {
+  position: relative;
+  gap: 10px;
+  padding: 18px 8px 20px;
+  border-radius: 40px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background:
+    radial-gradient(
+      circle at 26px calc(100% - 26px),
+      #c9ced6 0 1px,
+      #3a3b40 1.5px 3px,
+      #000000 3.5px 4px,
+      transparent 4.5px
+    ),
+    radial-gradient(
+      circle at calc(100% - 26px) calc(100% - 26px),
+      #c9ced6 0 1px,
+      #3a3b40 1.5px 3px,
+      #000000 3.5px 4px,
+      transparent 4.5px
+    ),
+    linear-gradient(180deg, rgba(30, 30, 34, 0.88), rgba(4, 4, 6, 0.92));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.6),
+    0 24px 50px rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(16px);
+}
+
+body.isLiquid .Layer::before {
+  content: '';
+  position: absolute;
+  top: 7px;
+  left: 30%;
+  right: 30%;
+  height: 2px;
+  border-radius: 1px;
+  background-color: var(--layer);
+  box-shadow: 0 0 10px var(--layer);
+}
+
+body.isLiquid .WithIcon {
+  color: var(--liquid-label);
+}
+
+/* Кнопка слоя: металл, внутри светится цвет слоя, когда слой играет */
+body.isLiquid .LaunchButton.hasLiquid {
+  --ring: 3px;
+  color: var(--layer);
+}
+
+body.isLiquid .LaunchButton.isOn.hasLiquid {
+  --face: radial-gradient(
+    circle at 50% 40%,
+    color-mix(in oklab, var(--layer), white 30%) 0%,
+    var(--layer) 45%,
+    color-mix(in oklab, var(--layer), black 55%) 100%
+  );
+  color: #050507;
+  box-shadow:
+    0 0 26px color-mix(in oklab, var(--layer) 60%, transparent),
+    0 9px 9px rgba(0, 0, 0, 0.12);
+}
+
+body.isLiquid .VariationButton.hasLiquid {
+  --ring: 1.5px;
+  width: 34px;
+  height: 20px;
+}
+
+body.isLiquid .VariationButton.isOn.hasLiquid {
+  color: var(--layer);
+  filter: drop-shadow(0 0 6px var(--layer));
+}
+
+/* Ручки: металлическое кольцо, чёрный купол, шкала-светодиод цвета слоя */
+body.isLiquid .Knob.hasLiquid {
+  --ring: 3px;
+}
+
+body.isLiquid .KnobTrack {
+  stroke: rgba(255, 255, 255, 0.1);
+}
+
+body.isLiquid .KnobValue {
+  stroke: var(--layer, var(--meter-on));
+  filter: drop-shadow(0 0 3px var(--layer, var(--meter-on)));
+}
+
+body.isLiquid .KnobMark {
+  stroke: var(--liquid-ink);
+}
+
+body.isLiquid .Master .Knob.isLarge.hasLiquid {
+  --ring: 5px;
+  --face: radial-gradient(
+    circle at 40% 30%,
+    #2a2a2e 0%,
+    #0b0b0d 60%,
+    #000000 100%
+  );
+  border: 0;
+  backdrop-filter: none;
+}
+
+body.isLiquid .Master .Knob.isLarge .KnobReadout {
+  color: var(--liquid-ink);
+}
+
+/* Движки: чёрный паз, хромовая ручка с риской посередине */
+body.isLiquid .Fader input::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 2px;
+  background-color: #000000;
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.12);
+}
+
+body.isLiquid .Fader input::-webkit-slider-thumb {
+  width: 10px;
+  height: 30px;
+  margin-top: -13px;
+  border-radius: 5px;
+  background:
+    linear-gradient(90deg, transparent 4px, #1a1b1f 4px 6px, transparent 6px),
+    var(--chrome);
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.5),
+    0 3px 6px rgba(0, 0, 0, 0.6);
+}
+
+body.isLiquid .Fader input::-moz-range-thumb {
+  width: 10px;
+  height: 30px;
+  border-radius: 5px;
+  background:
+    linear-gradient(90deg, transparent 4px, #1a1b1f 4px 6px, transparent 6px),
+    var(--chrome);
+}
+
+/* Транспорт: старт и части в металле, текущая часть светится синим */
+body.isLiquid .PlayButton.hasLiquid {
+  --ring: 4px;
+  color: var(--liquid-ink);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.6);
+}
+
+body.isLiquid .PartButton.isOn.hasLiquid {
+  --face: radial-gradient(
+    circle at 50% 40%,
+    #7fa2ff 0%,
+    #2f5fe0 60%,
+    #10235e 100%
+  );
+  color: #ffffff;
+}
+
+body.isLiquid .PartsPuck {
+  background-color: transparent;
+  box-shadow: 0 0 34px rgba(90, 132, 212, 0.65);
+}
+
+body.isLiquid .MuteButton.hasLiquid[aria-pressed='true'] {
+  --face: radial-gradient(circle at 50% 40%, #ff8a7a 0%, #b23a2e 70%);
+  color: #ffffff;
+}
+
+/* Растр: чёрные таблетки с хромовой кромкой, нажатый шаг светодиодом */
+body.isLiquid .Step::before {
+  left: calc(50% - 4px);
+  top: 4px;
+  bottom: 4px;
+  width: 8px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #6b7384, #e9edf3 50%, #6b7384);
+  opacity: 0.35;
+}
+
+body.isLiquid .Step[aria-pressed='true']::before {
+  background: var(--layer);
+  opacity: 1;
+  box-shadow: 0 0 14px var(--layer);
+}
+
+body.isLiquid .Step.isNow::before {
+  opacity: 1;
+  background: #ffffff;
+}
+
+/* Виды, мини-пульт */
+body.isLiquid .ViewButton {
+  border-color: rgba(255, 255, 255, 0.16);
+  background: var(--liquid-face);
+  color: var(--liquid-label);
+}
+
+body.isLiquid .ViewButton.isOn {
+  border-color: #ffffff;
+  background: #eef1f5;
+  color: #050507;
+}
+
+body.isLiquid .Stepper {
+  border-color: rgba(255, 255, 255, 0.1);
+  background: linear-gradient(
+    180deg,
+    rgba(30, 30, 34, 0.9),
+    rgba(4, 4, 6, 0.94)
+  );
+}
+
+body.isLiquid .StepperButton.hasLiquid {
+  color: var(--liquid-ink);
+}
+
+body.isLiquid .PanelBack.hasLiquid {
+  color: var(--liquid-ink);
+}

@@ -60,6 +60,9 @@ export const icons = {
   trace: '<path d="M3 6h5v4h4v5h3v-3h6"/><path d="M3 20h18"/>',
   save: '<path d="M12 4v11M7 10l5 5 5-5"/><path d="M5 20h14"/>',
   plus: '<path d="M12 5v14M5 12h14"/>',
+  pan: '<path d="M3 12h18M6 9l-3 3 3 3M18 9l3 3-3 3"/><circle cx="12" cy="12" r="1.6" fill="currentColor"/>',
+  swing:
+    '<path d="M4 17l4-10 4 10 4-10 4 10" opacity="0.45"/><circle cx="8" cy="7" r="1.6" fill="currentColor"/><circle cx="17" cy="9" r="1.6" fill="currentColor"/>',
   minus: '<path d="M5 12h14"/>',
   variants:
     '<rect x="4" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5"/><circle cx="16.75" cy="16.75" r="3.25"/>'

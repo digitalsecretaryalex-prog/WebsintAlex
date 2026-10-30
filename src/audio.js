@@ -394,6 +394,14 @@ export function setTempo(bpm, seconds = 0.5, time) {
   syncDelays(bpm, seconds, time)
 }
 
+// свинг: каждая вторая шестнадцатая чуть позже
+export function setSwing(amount) {
+  if (!nodes) return
+  const transport = Tone.getTransport()
+  transport.swingSubdivision = '16n'
+  transport.swing = amount
+}
+
 export function getTempo() {
   return Tone.getTransport().bpm.value
 }
@@ -423,6 +431,7 @@ export function setLayerParam(id, param, value) {
   if (param === 'filter') layerNodes.filter.frequency.rampTo(value, 0.1)
   if (param === 'echo') layerNodes.feedbackDelay.wet.rampTo(value, 0.1)
   if (param === 'space') layerNodes.reverb.wet.rampTo(value, 0.1)
+  if (param === 'pan') layerNodes.channel.pan.rampTo(value, 0.1)
   if (param === 'volume' && !layerState.isMuted) {
     layerNodes.channel.volume.rampTo(value, 0.1)
   }

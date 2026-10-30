@@ -331,11 +331,23 @@ export const layerKnobs = [
     scale: 'log'
   },
   { param: 'echo', label: 'эхо', icon: 'echo', min: 0, max: 0.6 },
-  { param: 'space', label: 'простор', icon: 'space', min: 0, max: 0.8 }
+  { param: 'space', label: 'простор', icon: 'space', min: 0, max: 0.8 },
+  // extra: только в вариантах стекла и металла, в базовой панели скрыта
+  {
+    param: 'pan',
+    label: 'панорама',
+    icon: 'pan',
+    min: -1,
+    max: 1,
+    bipolar: true,
+    extra: true
+  }
 ]
 
 export const volumeRange = { min: -40, max: 0, step: 1 }
 export const tempoRange = { min: 60, max: 90 }
+// свинг шестнадцатых: 0 ровно, 0.5 заметная раскачка
+export const swingRange = { min: 0, max: 0.5 }
 
 // event.code не зависит от раскладки
 export const keys = {

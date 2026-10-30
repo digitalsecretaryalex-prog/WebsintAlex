@@ -171,6 +171,11 @@ body.isPanelHidden .Switches {
   }
 }
 
+/* панорама и свинг есть только в вариантах стекла и металла */
+.WithIcon.isExtra {
+  display: none;
+}
+
 .WithIcon {
   display: flex;
   flex-direction: column;
