@@ -3,7 +3,28 @@
 // Нота слоя зажигает шар этого слоя и пускает сигналы к соседям.
 import * as THREE from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
-import { softMaterial } from './background.js'
+
+// Мягкая круглая точка: края тают, при сложении светится сильнее
+const SOFT_FRAGMENT = /* glsl */ `
+varying vec3 vColor;
+varying float vAlpha;
+void main() {
+  float d = length(gl_PointCoord - 0.5);
+  if (d > 0.5) discard;
+  gl_FragColor = vec4(vColor, smoothstep(0.5, 0.1, d) * vAlpha);
+}
+`
+
+function softMaterial(uniforms, vertexShader) {
+  return new THREE.ShaderMaterial({
+    uniforms,
+    vertexShader,
+    fragmentShader: SOFT_FRAGMENT,
+    transparent: true,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending
+  })
+}
 
 const NEURONS = 12
 const SURFACE = 3600
@@ -187,10 +208,7 @@ function createSparks(count, pixel) {
   return { points, positions, colors, sizes, geometry }
 }
 
-export function createSwarm(
-  { renderer, colors, reducedMotion, pointer },
-  mode
-) {
+function createSwarm({ renderer, colors, reducedMotion, pointer }, mode) {
   const scene = new THREE.Scene()
   const camera = new THREE.PerspectiveCamera(45, 1, 0.05, 80)
   const focus = new THREE.Vector3(0, 0.3, mode === 'flight' ? -6 : -4)

@@ -9,9 +9,9 @@
 import * as THREE from 'three'
 
 export const CHAIN = 7
-export const SIDE = 14
+const SIDE = 14
 export const NEURONS = CHAIN + SIDE
-export const SPACING = 4.2
+const SPACING = 4.2
 const LEAD = 3.2 // камера держится позади импульса
 const SIDE_SPAN = 46 // участок пути, на котором разложена периферия
 const LEAVE = 0.12 // доля такта: импульс выходит из тела
@@ -24,16 +24,16 @@ const BASS = 2
 const PAD = 3
 const MELODY = 4
 const TEXTURE = 5
-export const PACKETS = 6 // пакетов мелодии на дендритах одновременно
+const PACKETS = 6 // пакетов мелодии на дендритах одновременно
 
 // огибающая вспышки: вход 25 мс, затухание decay секунд
-function envelope(age, decay) {
+export function envelope(age, decay) {
   if (age < 0) return 0
   return Math.min(1, age / 0.025) * Math.exp(-age / decay)
 }
 
 // «C#4» → 0..1 в диапазоне C4…C6: выше нота, выше ветка
-function pitchUnit(name) {
+export function pitchUnit(name) {
   const match = /^([A-G])(#|b)?(-?\d)$/.exec(name || '')
   if (!match) return 0.5
   const steps = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 }

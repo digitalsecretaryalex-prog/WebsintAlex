@@ -21,7 +21,7 @@ function fromNorm(norm, knob) {
 }
 
 // 84 удара в минуту, 72 удара, 70 ударов
-export function beatsWord(count) {
+function beatsWord(count) {
   const rest10 = count % 10
   const rest100 = count % 100
   if (rest10 === 1 && rest100 !== 11) return 'удар'

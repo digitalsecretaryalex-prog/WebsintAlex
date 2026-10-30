@@ -365,18 +365,34 @@ function readView() {
   return VIEWS.some(({ id }) => id === view) ? view : 'tunnel'
 }
 
+// Фоны за нейронами: каждый отвечает на ноты и на все ручки
 const BACKGROUND_LIST = [
-  { id: 'dust', label: 'Фон: пыль' },
   {
-    id: 'calcium',
-    label: 'Фон: кальциевая съёмка, клетки вспыхивают и гаснут'
+    id: 'membrane',
+    label: 'Фон: мембрана, по сфере из точек идут волны от ударов'
   },
-  { id: 'tracts', label: 'Фон: волокна белого вещества, по ним бегут волны' }
+  {
+    id: 'cortex',
+    label: 'Фон: кора, по ткани из нейронов бегут лавины импульсов'
+  },
+  {
+    id: 'brain',
+    label: 'Фон: мозг, связи полушарий и таламуса зажигаются от нот'
+  },
+  {
+    id: 'sync',
+    label: 'Фон: синхрон, нейроны вспыхивают волнами, к концу сета в такт'
+  },
+  {
+    id: 'plasma',
+    label: 'Фон: плазма, по волнистым аксонам слоёв бегут сигналы'
+  },
+  { id: 'dust', label: 'Фон: пыль, только космос' }
 ]
 
 function readBackground() {
   const ground = new URLSearchParams(location.search).get('bg')
-  return BACKGROUND_LIST.some(({ id }) => id === ground) ? ground : 'dust'
+  return BACKGROUND_LIST.some(({ id }) => id === ground) ? ground : 'membrane'
 }
 
 function saveParam(name, value) {

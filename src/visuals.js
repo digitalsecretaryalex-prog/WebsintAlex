@@ -2,7 +2,7 @@
 // Режим живёт в своём файле в views/ и при смене освобождает ресурсы.
 import * as THREE from 'three'
 import { createSpikes } from './views/spikes.js'
-import { createBackdrop, BACKGROUNDS } from './views/background.js'
+import { createBackdrop, BACKGROUNDS } from './backgrounds/index.js'
 import {
   createFlight,
   createStream,
@@ -20,8 +20,6 @@ const CREATE = {
   tunnel: createTunnel,
   wave: createWave
 }
-export const VIEW_NAMES = Object.keys(CREATE)
-export { BACKGROUNDS }
 
 // По частям сета: насыщенность, доля видимых точек, энергия
 const PART_LOOK = [
@@ -127,7 +125,8 @@ export function initVisuals(container, palette, reducedMotion, mode, ground) {
     if (!BACKGROUNDS.includes(next) || next === groundName) return
     if (backdrop) disposeScene(backdrop.scene)
     groundName = next
-    backdrop = createBackdrop({ renderer, colors }, next)
+    backdrop = createBackdrop({ renderer, colors, reducedMotion }, next)
+    resize()
   }
 
   function setMode(next) {
@@ -147,6 +146,7 @@ export function initVisuals(container, palette, reducedMotion, mode, ground) {
     if (!clientWidth || !clientHeight || !view) return
     renderer.setSize(clientWidth, clientHeight, false)
     view.resize(clientWidth, clientHeight)
+    backdrop?.resize(clientWidth, clientHeight)
   }
   new ResizeObserver(resize).observe(container)
 
@@ -159,6 +159,7 @@ export function initVisuals(container, palette, reducedMotion, mode, ground) {
   function pulse(layer, event = {}) {
     if (!reducedMotion) spikes.fire(layer)
     view?.pulse?.(layer, event)
+    backdrop?.pulse(layer, event)
   }
 
   let lastTime = performance.now()
@@ -201,28 +202,17 @@ export function initVisuals(container, palette, reducedMotion, mode, ground) {
     spikes.update(dt, reducedMotion ? 0 : 0.8 * look.energy * look.wake, decay)
 
     view.update({ dt, time: now / 1000, target, look, speed, decay, spikes })
-    // у тоннеля и волны своя подложка из эталонов: фон рисуется поверх неё
-    // и идёт за камерой, как звёзды, иначе цепь улетела бы из фона
+    // порядок: подложка вида (у тоннеля и волны), фон своей камерой, вид.
+    // Поверх светлой подложки фон ярче, иначе теряется
     renderer.clear()
-    if (view.underlay) {
-      renderer.render(view.underlay, view.camera)
-      backdrop.scene.background = null
-      backdrop.scene.position.copy(view.camera.position)
-    } else {
-      backdrop.scene.background = colors.screen
-      backdrop.scene.position.set(0, 0, 0)
-    }
-    backdrop.update(
-      dt,
-      look,
-      (reducedMotion ? 0.15 : 1) * Math.max(0.08, look.wake),
-      view.underlay ? 2 : 1
-    )
-    renderer.render(backdrop.scene, view.camera)
+    if (view.underlay) renderer.render(view.underlay, view.camera)
+    backdrop.scene.background = view.underlay ? null : colors.screen
+    backdrop.update(dt, target, look, view.underlay ? 1.6 : 1)
+    renderer.render(backdrop.scene, backdrop.camera)
     renderer.render(view.scene, view.camera)
   }
 
-  setBackground(BACKGROUNDS.includes(ground) ? ground : 'dust')
+  setBackground(BACKGROUNDS.includes(ground) ? ground : 'membrane')
   setMode(CREATE[mode] ? mode : 'field')
   requestAnimationFrame(frame)
 

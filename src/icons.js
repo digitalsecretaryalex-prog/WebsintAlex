@@ -45,11 +45,17 @@ export const icons = {
   panelShow: '<path d="M6 14l6-6 6 6"/><path d="M4 19h16"/>',
   // фоны
   dust: '<circle cx="6" cy="7" r="1"/><circle cx="14" cy="5" r="1"/><circle cx="19" cy="11" r="1"/><circle cx="9" cy="14" r="1"/><circle cx="16" cy="18" r="1"/><circle cx="5" cy="19" r="1"/>',
-  calcium:
-    '<circle cx="7" cy="8" r="3.5"/><circle cx="17" cy="7" r="2.5"/><circle cx="14" cy="17" r="3.5"/><circle cx="14" cy="17" r="0.8"/>',
-  tracts:
-    '<path d="M3 17c4-9 10-11 18-9"/><path d="M3 12c5-4 11-4 18 1"/><path d="M5 21c3-4 9-6 15-3"/>',
-
+  // мембрана: сфера с волной; кора: ткань из узлов; мозг: два полушария;
+  // синхрон: кольца волны; плазма: волнистые линии с сигналом
+  membrane:
+    '<circle cx="12" cy="12" r="8.5"/><path d="M4 12.5c2.7-2.6 5.3 2.6 8 0s5.3-2.6 8 0" opacity="0.7"/>',
+  cortex:
+    '<circle cx="5" cy="7" r="1.6"/><circle cx="12" cy="5" r="1.6"/><circle cx="19" cy="8" r="1.6"/><circle cx="8" cy="14" r="2.2" fill="currentColor"/><circle cx="16" cy="15" r="1.6"/><circle cx="6" cy="20" r="1.6"/><circle cx="17" cy="20.5" r="1.2"/><path d="M6.4 8l1 4.4M10 13.2l4.4 1.2M12.6 6.4l2.8 7.2M9 16l-2.2 2.7" opacity="0.6"/>',
+  brain:
+    '<path d="M11.5 4.5C7 4 3.5 7 3.5 11.5s3 8 8 8"/><path d="M12.5 4.5c4.5-.5 8 2.5 8 7s-3 8-8 8"/><path d="M7 9.5c1.5 0 2 1.5 3.5 1.5M17 9.5c-1.5 0-2 1.5-3.5 1.5M7 14.5c1.5-.8 3 0 4 1M17 14.5c-1.5-.8-3 0-4 1" opacity="0.6"/>',
+  sync: '<circle cx="12" cy="12" r="2" fill="currentColor"/><circle cx="12" cy="12" r="5.5" opacity="0.75"/><circle cx="12" cy="12" r="9" opacity="0.45"/>',
+  plasma:
+    '<path d="M2 9c4-5 7 4 10 0s6-5 10 0"/><path d="M2 15c4-4 7 4 10 0s6-4 10 0" opacity="0.6"/><circle cx="12" cy="9" r="1.8" fill="currentColor"/>',
   plus: '<path d="M12 5v14M5 12h14"/>',
   pan: '<path d="M3 12h18M6 9l-3 3 3 3M18 9l3 3-3 3"/><circle cx="12" cy="12" r="1.6" fill="currentColor"/>',
   swing:
